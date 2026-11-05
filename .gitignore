@@ -1,0 +1,22 @@
+# 개인 데이터·비밀 (세션 목록·known_hosts·비밀번호 저장소·서버 로그)
+data/
+logs/
+# 로컬 CA 개인키
+certs/
+# 빌드 결과
+_internal/
+build/dist/
+build/work/
+dist/
+*.exe
+*.spec
+__pycache__/
+# 시험 실행 결과·시험용 호스트 키
+dev/harness/run/
+dev/harness/hostkey
+# 공개 저장소에서 뺀 내부 기록 (로컬과 비공개 백업 web-ssh-terminal-history에만)
+docs/memory/
+docs/design/
+docs/SPEC_*
+docs/REVIEW_*
+build/.venv/

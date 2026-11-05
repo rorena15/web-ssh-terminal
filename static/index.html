@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>W.S.T</title>
+<link rel="icon" href="favicon.ico">
+<link rel="stylesheet" href="vendor/xterm.css">
+<link rel="stylesheet" href="style.css">
+<script>try{var t=JSON.parse(localStorage.getItem('webssh.uiTheme'))||'light';if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<nav id="menubar" aria-label="메뉴"><button class="mb" data-menu="file">파일</button><button class="mb" data-menu="view">보기</button><button class="mb" data-menu="term">터미널</button><button class="mb" data-menu="tools">도구</button><button class="mb" data-menu="help">도움말</button></nav>
+<header id="toolbar">
+<button id="sideToggle" class="tb small" title="사이드바 접기/펴기 (Ctrl+Shift+B)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+<span class="tb-sep"></span>
+<button id="tbSession" class="tb" title="새 세션 (Ctrl+Alt+N)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18v16H3zM7 8l3 4-3 4M13 16h4"></path></svg>새 세션</button>
+<button id="tbLocal" class="tb" data-feature="local" title="로컬 터미널 (Ctrl+Alt+T)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18v16H3zM6 8l3 3-3 3M12 15h6"></path></svg>로컬</button>
+<span class="tb-sep"></span><div class="tb-split" id="tbSplit" data-feature="split"><button class="tb small" data-layout="1" title="한 화면 (Ctrl+Alt+1)" aria-label="한 화면"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4h18v16H3z"/></svg></button><button class="tb small" data-layout="2v" title="좌우 분할 (Ctrl+Alt+2)" aria-label="좌우 분할"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4h18v16H3zM12 4v16"/></svg></button><button class="tb small" data-layout="2h" title="상하 분할 (Ctrl+Alt+3)" aria-label="상하 분할"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4h18v16H3zM3 12h18"/></svg></button><button class="tb small" data-layout="4" title="4분할 (Ctrl+Alt+4)" aria-label="4분할"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 4h18v16H3zM12 4v16M3 12h18"/></svg></button></div><span class="tb-sep"></span>
+<button id="tbMulti" class="tb" data-feature="multiexec" title="MultiExec (Ctrl+Shift+M)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h15M3 12h15M3 17h15M17 4l4 3-4 3"></path></svg>MultiExec</button>
+<button id="tbMacro" class="tb" data-feature="macro" title="매크로 녹화·재생"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4"></path></svg>매크로</button>
+<span class="tb-sep"></span>
+<button id="tbTunnel" class="tb" data-feature="tunnels" title="SSH 터널"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h17l-4-4M21 16H4l4 4"></path></svg>터널<span class="badge" id="tunnelBadge"></span></button>
+<button id="tbTools" class="tb" data-feature="tools" title="도구"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3l7 7-4 4-7-7zM12 12L4 20"></path></svg>도구</button>
+<button id="tbLogs" class="tb" data-feature="logs" title="세션 로그 폴더"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6M9 14h6"></path></svg>로그</button>
+<button id="tbSettings" class="tb" title="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6"></path></svg>설정</button>
+<button id="tbPalette" hidden>명령 팔레트</button><div class="spacer"></div>
+<span class="quick-wrap"><input id="quick" aria-label="빠른 접속 주소" placeholder="user@host[:port]" spellcheck="false" autocomplete="off"><button id="quickGo">접속</button></span>
+<span id="fontCtl" role="group" aria-label="터미널 글꼴과 크기"><span class="font-target" role="group" aria-label="글꼴 조절 대상"><button class="tb small on" data-font-target="term" aria-pressed="true" title="터미널 글꼴과 크기 조절">터미널</button><button class="tb small" data-font-target="ui" aria-pressed="false" title="화면 글꼴과 크기 조절">화면</button></span><select id="fontFamilySel" aria-label="터미널 글꼴" title="터미널 글꼴" disabled></select><button id="fontDown" class="tb small" title="터미널 글자 작게">A−</button><button id="fontSizeVal" class="tb small" title="기본 크기(15)로 되돌리기" aria-label="현재 터미널 글자 크기, 누르면 기본 크기로 되돌리기">15</button><button id="fontUp" class="tb small" title="터미널 글자 크게">A＋</button></span>
+<button id="themeBtn" class="tb small" title="라이트/다크 전환"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 1-9-9"></path></svg></button><button id="fullBtn" class="tb small" title="전체화면 (F11)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"></path></svg></button>
+</header>
+
+<div id="main">
+    <nav id="vtabs" aria-label="사이드바 탭">
+      <button class="vt on" data-side="sessions">세션</button>
+      <button class="vt" data-side="sftp">SFTP</button>
+      <button class="vt" data-side="tunnels" data-feature="tunnels">터널<span class="badge" id="tunnelBadge2"></span></button>
+    </nav>
+  <aside id="sidebar">
+<section id="side-sessions" class="side-pane on">
+      <div class="side-bar">
+        <input id="treeSearch" placeholder="세션·호스트 찾기" spellcheck="false">
+        <button id="treeNewSession" title="새 세션"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M4 12h16"></path></svg></button>
+        <button id="treeNewFolder" title="새 폴더"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7l2 3h9v11H3z"></path></svg></button>
+        <button id="treeImport" title="세션 파일 가져오기 (.mxtsessions / .ini / .json)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 16v5h16v-5"></path></svg></button>
+        <button id="treeExport" title="세션 내보내기 (JSON)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v5h16v-5"></path></svg></button>
+        <input id="importFile" type="file" accept=".ini,.mxtsessions,.json" hidden>
+      </div>
+      <div id="tree" tabindex="0"></div>
+    </section>
+
+    <section id="side-sftp" class="side-pane">
+      <div id="sftpEmpty" class="side-empty">SSH 세션에 접속하면<br>여기에 파일 탐색기가 열립니다.</div>
+    </section>
+
+    <section id="side-tunnels" class="side-pane">
+      <div class="side-bar">
+        <span class="grow">SSH 터널</span>
+        <button id="tunnelAdd" title="새 터널">＋</button>
+      </div>
+      <div id="tunnelList"></div>
+      <p class="side-hint">127.0.0.1에만 열립니다. 서버가 켜져 있는 동안 유지되고 끊기면 자동 재연결합니다.</p>
+    </section>
+  </aside>
+  <div id="sideResizer" title="드래그해서 폭 조절, 더블클릭으로 접기"></div>
+
+  <div id="right">
+    <div id="tabbar"><div id="tabs"></div><button id="meBadge" data-feature="multiexec" hidden></button></div>
+    <main id="workspace" class="layout-1">
+      <section id="home">
+        <div class="home-box">
+          <h1>W.S.T</h1>
+          <p class="dim">왼쪽 세션을 더블클릭하거나, 위의 빠른 접속에 <code>user@host</code>를 입력하세요.</p>
+          <div class="home-actions">
+            <button id="homeNew" class="primary">＋ 새 세션</button>
+            <button id="homeLocal">▣ 로컬 터미널</button>
+          </div>
+          <h3>최근 접속</h3>
+          <ul id="recentList"></ul>
+          <p class="tips">
+            드래그 = 복사 · 우클릭 = 붙여넣기 · Ctrl+Shift+C/V<br>
+            <b>Ctrl+Shift+P(F1) 명령 팔레트</b> — 세션·동작을 이름으로 검색<br>
+            Ctrl+Alt+N 새 세션 · Ctrl+Alt+W 탭 닫기 · Ctrl+Tab / Ctrl+Alt+←/→ 탭 이동 · Ctrl+Alt+F SFTP<br>
+            Ctrl+Shift+F 터미널에서 찾기 · Ctrl+Shift+S 출력 저장 · Ctrl+Alt+1~4 화면 분할 · Ctrl+휠 글자 크기<br>
+            끊긴 탭에서 R = 재접속, Enter = 탭 닫기
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<footer id="statusbar"><span id="sbText">준비</span><span id="sbApp"></span></footer>
+
+<!-- 세션 편집: data-for="종류 목록" 인 요소는 그 종류일 때만 보임 (syncSessionForm) -->
+<dialog id="sessionDlg" class="dlg">
+  <form method="dialog" id="sessionForm" autocomplete="off">
+    <h3 id="sdTitle">새 세션</h3>
+    <div class="type-tabs">
+      <label><input type="radio" name="stype" value="ssh" checked> SSH</label>
+      <label data-feature="sftp"><input type="radio" name="stype" value="sftp"> SFTP</label>
+      <label data-feature="rdp"><input type="radio" name="stype" value="rdp"> RDP</label>
+      <label data-feature="telnet"><input type="radio" name="stype" value="telnet"> Telnet</label>
+      <label data-feature="serial"><input type="radio" name="stype" value="serial"> Serial</label>
+      <label data-feature="ftp"><input type="radio" name="stype" value="ftp"> FTP</label>
+      <label data-feature="vnc"><input type="radio" name="stype" value="vnc"> VNC</label>
+      <label data-feature="mosh"><input type="radio" name="stype" value="mosh"> Mosh</label>
+      <label data-feature="rlogin"><input type="radio" name="stype" value="rlogin"> Rlogin</label>
+      <label data-feature="local"><input type="radio" name="stype" value="local"> 로컬</label>
+    </div>
+    <div class="grid2">
+      <label>이름<input name="name" placeholder="(비우면 host)"></label>
+      <label>폴더<input name="folder" list="folderList" placeholder="예: 고객사/프로젝트"></label>
+    </div>
+    <datalist id="folderList"></datalist>
+    <div class="color-row">색 라벨
+      <label><input type="radio" name="color" value="" checked><i class="sw none">없음</i></label>
+      <label><input type="radio" name="color" value="red"><i class="sw" style="--c:#e5484d">운영</i></label>
+      <label><input type="radio" name="color" value="orange"><i class="sw" style="--c:#f76b15"></i></label>
+      <label><input type="radio" name="color" value="yellow"><i class="sw" style="--c:#e2a336"></i></label>
+      <label><input type="radio" name="color" value="green"><i class="sw" style="--c:#30a46c"></i></label>
+      <label><input type="radio" name="color" value="blue"><i class="sw" style="--c:#0b74de"></i></label>
+      <label><input type="radio" name="color" value="purple"><i class="sw" style="--c:#8e4ec6"></i></label>
+    </div>
+
+    <div data-for="ssh sftp rdp telnet rlogin ftp vnc mosh">
+      <div class="grid3">
+        <label class="span2">호스트<input name="host" placeholder="10.0.0.5"></label>
+        <label>포트<input name="port" type="number" min="1" max="65535"></label>
+      </div>
+    </div>
+    <label data-for="ssh sftp rdp telnet rlogin ftp mosh">사용자<input name="username" placeholder="root"></label>
+
+    <div data-for="ssh sftp mosh">
+      <div class="grid2">
+        <label>인증
+          <select name="auth">
+            <option value="password">비밀번호 (접속할 때 입력·저장 가능)</option>
+            <option value="keyfile">개인키 파일 (.pem / OpenSSH / PuTTY .ppk)</option>
+          </select>
+        </label>
+        <label data-for="ssh mosh">인코딩
+          <select name="encoding"><option value="utf-8">UTF-8</option><option value="euc-kr">EUC-KR (CP949)</option></select>
+        </label>
+      </div>
+      <label class="keyfile-row">개인키 파일 경로
+        <span class="row"><input name="keyPath" placeholder="C:\Users\...\.ssh\id_ed25519"><button type="button" class="pick" data-for-input="keyPath">찾기…</button></span>
+      </label>
+    </div>
+    <label data-for="telnet rlogin serial">인코딩
+      <select name="encoding2"><option value="utf-8">UTF-8</option><option value="euc-kr">EUC-KR (CP949)</option></select>
+    </label>
+
+    <!-- Serial -->
+    <div data-for="serial">
+      <div class="grid3">
+        <label>포트<span class="row"><select name="com"></select><button type="button" id="comRefresh" title="다시 찾기">⟳</button></span></label>
+        <label>속도(bps)
+          <select name="baud">
+            <option>1200</option><option>2400</option><option>4800</option><option selected>9600</option><option>19200</option>
+            <option>38400</option><option>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option>
+          </select>
+        </label>
+        <label>흐름 제어
+          <select name="flow"><option value="none">없음</option><option value="rtscts">하드웨어 (RTS/CTS)</option><option value="xonxoff">소프트웨어 (XON/XOFF)</option></select>
+        </label>
+      </div>
+      <div class="grid3">
+        <label>데이터 비트<select name="bits"><option>8</option><option>7</option><option>6</option><option>5</option></select></label>
+        <label>패리티<select name="parity"><option value="N">없음</option><option value="E">짝수</option><option value="O">홀수</option><option value="M">마크</option><option value="S">스페이스</option></select></label>
+        <label>정지 비트<select name="stop"><option value="1">1</option><option value="1.5">1.5</option><option value="2">2</option></select></label>
+      </div>
+      <label class="check"><input type="checkbox" name="crlf"> Enter를 CR+LF로 보내기</label>
+    </div>
+
+    <!-- FTP -->
+    <div data-for="ftp" class="checks">
+      <label>보안<select name="ftpTls"><option value="">FTP (암호화 없음)</option><option value="explicit">FTPS (명시적 TLS)</option></select></label>
+      <label hidden><input type="checkbox" name="ftpInsecure"> 인증서 확인 안 함 (자체 서명 서버 · 위험)</label>
+      <label><input type="checkbox" name="passive" checked> 패시브 모드</label>
+    </div>
+
+    <!-- VNC -->
+    <div data-for="vnc" class="checks">
+      <label><input type="checkbox" name="viewOnly"> 보기만 (마우스·키보드 보내지 않음)</label>
+      <label>화면<select name="vncScale"><option value="fit">창에 맞춤</option><option value="real">원래 크기</option></select></label>
+    </div>
+
+    <div class="checks" data-for="ssh telnet rlogin serial mosh">
+      <label><input type="checkbox" name="log"> 세션 로그 저장</label>
+      <label data-for="ssh telnet rlogin"><input type="checkbox" name="reconnect" checked> 끊기면 자동 재접속</label>
+    </div>
+
+    <details class="jump" data-for="ssh sftp">
+      <summary>점프 호스트(SSH 게이트웨이) 경유</summary>
+      <label>저장된 SSH 세션을 점프 호스트로 <span class="hint">(그 세션의 점프 호스트까지 차례로 경유 = 다중 홉)</span>
+        <select name="jumpVia"><option value="">(직접 입력 ↓)</option></select>
+      </label>
+      <div class="grid3 j-manual">
+        <label class="span2">호스트<input name="j_host"></label>
+        <label>포트<input name="j_port" type="number" min="1" max="65535" placeholder="22"></label>
+      </div>
+      <div class="grid2 j-manual">
+        <label>사용자<input name="j_username"></label>
+        <label>인증
+          <select name="j_auth"><option value="password">비밀번호</option><option value="keyfile">개인키 파일</option></select>
+        </label>
+      </div>
+      <label class="j-keyfile-row">개인키 파일 경로
+        <span class="row"><input name="j_keyPath"><button type="button" class="pick" data-for-input="j_keyPath">찾기…</button></span>
+      </label>
+    </details>
+
+    <details class="jump" data-for="ssh">
+      <summary>고급 (접속 후 실행 · 연결 옵션 · 터미널)</summary>
+      <label>접속 후 실행할 명령 <span class="hint">(줄마다 하나, 접속·재접속할 때마다)</span>
+        <textarea name="loginCmd" rows="3" class="mono" spellcheck="false" placeholder="예: sudo -i&#10;cd /var/log"></textarea>
+      </label>
+      <div class="grid2">
+        <label data-feature="macro">접속 후 매크로<select name="loginMacro"></select></label>
+        <label>Keepalive (초)<input name="keepalive" type="number" min="0" max="3600" placeholder="30"></label>
+      </div>
+      <div class="grid2">
+        <label>스크롤백 줄 수<input name="scrollback" type="number" min="1000" max="200000" step="1000" placeholder="설정값"></label>
+        <span></span>
+      </div>
+      <div class="grid3">
+        <label>프록시<select name="proxyType"><option value="">(없음)</option><option value="socks5">SOCKS5</option><option value="http">HTTP CONNECT</option></select></label>
+        <label>프록시 주소<input name="proxyHost" placeholder="127.0.0.1"></label>
+        <label>프록시 포트<input name="proxyPort" type="number" min="1" max="65535" placeholder="1080"></label>
+      </div>
+      <div class="grid2">
+        <label>유휴 방지 (초) <span class="hint">(입력이 없으면 스페이스+지우기 전송, 0=끔)</span><input name="antiIdle" type="number" min="0" max="3600" placeholder="0"></label>
+        <span></span>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" name="compress"> SSH 압축</label>
+        <label><input type="checkbox" name="agent"> SSH 에이전트 사용 (Pageant / Windows OpenSSH)</label>
+        <label data-feature="x11"><input type="checkbox" name="x11"> X11 포워딩 (VcXsrv 등 X 서버 필요)</label>
+      </div>
+    </details>
+
+    <div data-for="rdp">
+      <div class="grid2">
+        <label>화면
+          <select name="screen">
+            <option value="full">전체 화면</option>
+            <option value="1920x1080">1920×1080</option>
+            <option value="1600x900">1600×900</option>
+            <option value="1366x768">1366×768</option>
+            <option value="1280x800">1280×800</option>
+          </select>
+        </label>
+        <label>열기 방식<select name="rdpMode"><option value="mstsc">Windows 원격 데스크톱 (mstsc)</option></select></label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" name="clipboard" checked> 클립보드 공유</label>
+        <label><input type="checkbox" name="drives"> 내 드라이브 연결</label>
+        <label><input type="checkbox" name="multimon"> 다중 모니터</label>
+        <label><input type="checkbox" name="admin"> 관리 콘솔 (/admin)</label>
+      </div>
+    </div>
+    <label data-for="rdp telnet vnc">SSH 게이트웨이 경유
+      <select name="gateway"><option value="">(직접 접속)</option></select>
+    </label>
+    <p class="hint" data-for="rdp">비밀번호는 원격 데스크톱 창에서 입력하거나, 세션 우클릭 → "RDP 비밀번호 저장"으로 저장해 두면 묻지 않습니다.</p>
+    <p class="hint" data-for="mosh">Mosh는 이 PC의 WSL에 mosh가 설치돼 있어야 합니다 (서버에는 mosh-server).</p>
+
+    <div data-for="local">
+      <label>셸<select name="shell"></select></label>
+    </div>
+
+    <p class="error" id="sdError"></p>
+    <div class="row end">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="save" id="sdSave">저장</button>
+      <button value="connect" class="primary" id="sdConnect">저장하고 접속</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 비밀번호 입력 -->
+<dialog id="secretDlg" class="dlg narrow">
+  <form method="dialog" autocomplete="off">
+    <h3 id="secTitle">비밀번호 입력</h3>
+    <div id="secFields"></div>
+    <label class="check"><input type="checkbox" id="secRemember" checked> 이 창을 닫을 때까지 기억</label>
+    <label class="check" id="secSaveRow" hidden title="Windows DPAPI로 암호화해 이 PC의 이 계정에서만 풀립니다. 접속에 성공해야 저장됩니다."><input type="checkbox" id="secSave"> 이 PC에 저장 (Windows 계정으로 암호화)</label>
+    <div class="row end">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="ok" class="primary">접속</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 호스트 키 -->
+<dialog id="hostkeyDlg" class="dlg narrow">
+  <form method="dialog">
+    <h3>처음 접속하는 서버입니다</h3>
+    <p><b id="hkHost"></b>의 호스트 키 지문을 확인하세요.</p>
+    <code id="hkFp"></code>
+    <p class="hint">신뢰하면 저장되고, 다음부터 키가 바뀌면 경고합니다.</p>
+    <div class="row end">
+      <button value="no">거부</button>
+      <button value="yes" class="primary">신뢰하고 접속</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 호스트 키 바뀜 -->
+<dialog id="hkChangedDlg" class="dlg narrow">
+  <form method="dialog">
+    <h3 class="bad-title">⚠ 호스트 키가 바뀌었습니다</h3>
+    <p><b id="hkcHost"></b>의 키가 저장된 것과 다릅니다. 서버를 재설치·교체하지 않았다면 <b>중간자 공격</b>일 수 있으니 접속하지 마세요.</p>
+    <pre id="hkcDetail" class="mono hk-detail"></pre>
+    <div class="row end">
+      <button value="cancel">접속 안 함</button>
+      <button value="replace" class="primary danger-fill">저장된 키 지우고 다시 확인</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 터널 편집 -->
+<dialog id="tunnelDlg" class="dlg narrow">
+  <form method="dialog" autocomplete="off">
+    <h3 id="tdTitle">새 터널</h3>
+    <label>이름<input name="name" placeholder="예: 사내 DB"></label>
+    <label>종류
+      <select name="type">
+        <option value="local">로컬 포워딩 (내 포트 → 원격 서비스)</option>
+        <option value="remote">원격 포워딩 (서버 포트 → 내 PC 쪽 서비스)</option>
+        <option value="dynamic">동적 SOCKS5 프록시</option>
+      </select>
+    </label>
+    <div class="grid2">
+      <label><span class="lp-label">내 PC 포트 (127.0.0.1)</span><input name="listenPort" type="number" min="1" max="65535" required></label>
+      <label>경유 SSH 세션<select name="via" required></select></label>
+    </div>
+    <div class="grid3 dest-row">
+      <label class="span2"><span class="dh-label">원격 대상 호스트</span><input name="destHost" placeholder="127.0.0.1 (SSH 서버 기준)"></label>
+      <label>포트<input name="destPort" type="number" min="1" max="65535"></label>
+    </div>
+    <label class="check remote-only"><input type="checkbox" name="remoteAll"> 서버의 모든 주소에서 받기 (GatewayPorts 필요, 기본은 서버의 127.0.0.1만)</label>
+    <label class="check"><input type="checkbox" name="autoStart"> 프로그램을 켤 때 자동 시작 (저장된 비밀번호나 키가 필요)</label>
+    <p class="hint" id="tdHint"></p>
+    <p class="error" id="tdError"></p>
+    <div class="row end">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="save" class="primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 설정: 왼쪽 세로 탭 + 오른쪽 내용 (탭 전환은 about.js) -->
+<dialog id="settingsDlg" class="dlg tabbed" aria-labelledby="setTitle">
+  <form method="dialog" autocomplete="off">
+    <h3 id="setTitle">설정</h3>
+    <div class="tdlg">
+      <nav class="tdlg-tabs" role="tablist" aria-orientation="vertical" aria-label="설정 분류">
+        <button type="button" data-pane="screen" class="on">화면</button>
+        <button type="button" data-pane="term">터미널</button>
+        <button type="button" data-pane="behavior">동작</button>
+        <button type="button" data-pane="security" data-feature="passwordSave">보안</button>
+        <button type="button" data-pane="features">기능 표시</button>
+        <button type="button" data-pane="highlight">하이라이트</button>
+        <button type="button" data-pane="info">정보</button>
+      </nav>
+      <div class="tdlg-body">
+        <section data-pane="screen" class="on">
+          <h4 class="first">테마</h4>
+          <label>화면 테마<select name="uiTheme"></select></label>
+          <h4>화면 글자</h4>
+          <div class="grid2">
+            <label>화면 글꼴<select name="uiFontFamily"></select></label>
+            <label>화면 글자 크기(px)<input name="uiFontSize" type="number" min="11" max="18" step="1" value="12"></label>
+          </div>
+          <p class="hint">툴바의 [화면] 묶음에서도 바로 바꿀 수 있습니다.</p>
+        </section>
+        <section data-pane="term">
+          <h4 class="first">색</h4>
+          <label>터미널 색<select name="termScheme"></select></label>
+          <div id="schemePreview" class="scheme-preview mono"></div>
+          <h4>글자·스크롤</h4>
+          <div class="grid2">
+            <label>터미널 글꼴<input name="fontFamily" spellcheck="false" placeholder="D2Coding, Consolas"></label>
+            <label>스크롤백 줄 수<input name="scrollback" type="number" min="1000" max="200000" step="1000" placeholder="10000"></label>
+          </div>
+          <div class="checks">
+            <label><input type="checkbox" name="pasteWarn"> 여러 줄·위험 명령 붙여넣기 전에 확인</label>
+          </div>
+        </section>
+        <section data-pane="behavior">
+          <h4 class="first">세션 로그</h4>
+          <label>세션 로그 폴더 <span class="hint">(비우면 프로그램 폴더의 logs)</span>
+            <input name="logDir" spellcheck="false">
+          </label>
+          <div class="checks">
+            <label><input type="checkbox" name="logDefault"> 새 SSH 세션은 로그 저장 켜기</label>
+            <label><input type="checkbox" name="logTimestamp"> 세션 로그 줄마다 시각 기록</label>
+          </div>
+          <h4>세션 목록</h4>
+          <label>공유 세션 파일 <span class="hint">(팀이 함께 쓰는 .json · 네트워크 폴더 가능 · 읽기 전용으로 "공유/" 아래 표시 · 다시 켤 때 적용)</span>
+            <input name="sharedPath" spellcheck="false" placeholder="\\fileserver\팀\webssh-sessions.json">
+          </label>
+          <h4>기타</h4>
+          <div class="checks">
+            <label><input type="checkbox" name="monitor"> 원격 모니터링 (상태 바)</label>
+            <label><input type="checkbox" name="followFolder"> SFTP가 터미널 폴더 따라가기</label>
+            <label title="어디서든 Ctrl+Alt+M → 창 불러오기 / 다시 누르면 숨기기"><input type="checkbox" name="globalHotkey"> 전역 단축키 Ctrl+Alt+M</label>
+          </div>
+          <h4>중계 서버</h4>
+          <div class="row"><span class="grow hint">끄면 열린 터널·접속이 모두 끊깁니다.</span><button type="button" id="shutdownBtn" class="danger-btn">서버 종료</button></div>
+        </section>
+        <section data-pane="security" data-feature="passwordSave">
+          <h4 class="first">비밀번호 저장소</h4>
+          <p class="hint">Windows DPAPI로 암호화해 이 PC의 이 계정에서만 풀립니다.</p>
+          <div class="row"><span id="vaultInfo" class="grow hint"></span><button type="button" id="vaultBtn">관리…</button></div>
+        </section>
+        <section data-pane="features">
+          <h4 class="first">기능 표시</h4>
+          <p class="hint">끄면 툴바·메뉴·세션 종류에서 숨깁니다. 기능 자체는 남아 있습니다.</p>
+          <div class="checks" id="featureChecks"></div>
+        </section>
+        <section data-pane="highlight">
+          <h4 class="first">키워드 하이라이트</h4>
+          <p class="hint">정규식, 대소문자 무시</p>
+          <div id="hlRules"></div>
+          <button type="button" id="hlAdd">＋ 규칙 추가</button>
+        </section>
+        <section data-pane="info">
+          <h4 class="first">프로그램 정보</h4>
+          <div class="about-mini"><img src="favicon.ico" alt="" width="32" height="32"><div><b>W.S.T</b><div class="hint about-ver">버전 확인 중…</div></div></div>
+          <div class="row"><button type="button" class="open-about">버전 정보</button><button type="button" class="open-license">라이선스</button><button type="button" class="open-help">단축키 안내</button></div>
+        </section>
+      </div>
+    </div>
+    <div class="row end dlg-foot">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="save" class="primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 도움말: 단축키 안내 -->
+<dialog id="helpDlg" class="dlg" aria-labelledby="helpTitle">
+  <form method="dialog">
+    <h3 id="helpTitle">단축키 안내</h3>
+    <div class="help-grid">
+      <section><h4 class="first">일반</h4><table class="keys">
+        <tr><td><kbd>Ctrl+Shift+P</kbd> / <kbd>F1</kbd></td><td>명령 팔레트 (세션·동작 이름으로 검색)</td></tr>
+        <tr><td><kbd>Ctrl+Alt+N</kbd></td><td>새 세션</td></tr>
+        <tr><td><kbd>Ctrl+Shift+Q</kbd></td><td>빠른 접속 칸으로</td></tr>
+        <tr><td><kbd>Ctrl+Alt+L</kbd></td><td>화면 잠금</td></tr>
+        <tr><td><kbd>Ctrl+Alt+T</kbd></td><td>로컬 터미널</td></tr>
+        <tr><td><kbd>Ctrl+Shift+B</kbd></td><td>사이드바 접기/펴기</td></tr>
+        <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>MultiExec 켜기/끄기</td></tr>
+        <tr><td><kbd>Ctrl+Alt+M</kbd></td><td>어디서든 창 불러오기 (설정에서 켰을 때)</td></tr>
+      </table></section>
+      <section><h4 class="first">탭·화면</h4><table class="keys">
+        <tr><td><kbd>Ctrl+Alt+W</kbd></td><td>탭 닫기</td></tr>
+        <tr><td><kbd>Ctrl+Tab</kbd> / <kbd>Ctrl+Alt+←/→</kbd></td><td>탭 이동</td></tr>
+        <tr><td><kbd>Ctrl+Shift+U</kbd></td><td>탭 복제</td></tr>
+        <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>탭을 새 창으로 분리</td></tr>
+        <tr><td><kbd>Ctrl+Alt+1~4</kbd></td><td>한 화면 · 좌우 · 상하 · 4분할</td></tr>
+        <tr><td><kbd>F11</kbd></td><td>전체화면 (Ctrl+W 등도 터미널로 전달)</td></tr>
+      </table></section>
+      <section><h4>터미널</h4><table class="keys">
+        <tr><td>드래그 / 우클릭</td><td>복사 / 붙여넣기</td></tr>
+        <tr><td><kbd>Ctrl+Shift+C</kbd> / <kbd>V</kbd></td><td>복사 / 붙여넣기</td></tr>
+        <tr><td><kbd>Ctrl+Shift+F</kbd></td><td>터미널에서 찾기</td></tr>
+        <tr><td><kbd>Ctrl+Shift+S</kbd></td><td>출력 저장</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+휠</td><td>터미널 글자 크기</td></tr>
+        <tr><td>끊긴 탭에서 <kbd>R</kbd> / <kbd>Enter</kbd></td><td>재접속 / 탭 닫기</td></tr>
+      </table></section>
+      <section><h4>SFTP</h4><table class="keys">
+        <tr><td><kbd>Ctrl+Alt+F</kbd></td><td>SFTP 패널</td></tr>
+        <tr><td><kbd>Backspace</kbd></td><td>상위 폴더</td></tr>
+        <tr><td><kbd>F5</kbd></td><td>새로고침</td></tr>
+        <tr><td><kbd>F2</kbd></td><td>이름 바꾸기 (세션 트리에서는 세션 편집)</td></tr>
+      </table></section>
+    </div>
+    <div class="row end"><button value="close" class="primary">닫기</button></div>
+  </form>
+</dialog>
+
+<!-- 도움말: 버전 정보 -->
+<dialog id="aboutDlg" class="dlg narrow" aria-labelledby="aboutTitle">
+  <form method="dialog">
+    <div class="about-head"><img src="favicon.ico" alt="" width="48" height="48"><div><h3 id="aboutTitle">W.S.T</h3><div class="hint">Web SSH Terminal</div></div></div>
+    <table class="about-tbl">
+      <tr><th>버전</th><td id="abVersion">확인 중…</td></tr>
+      <tr><th>빌드</th><td id="abBuilt"></td></tr>
+      <tr><th>실행 환경</th><td id="abEnv"></td></tr>
+    </table>
+    <p class="hint">© 2026 rorena15 · GPL-3.0-or-later · github.com/rorena15/web-ssh-terminal</p>
+    <div class="row end">
+      <button type="button" class="open-license">라이선스</button>
+      <span class="grow"></span>
+      <button value="close" class="primary">닫기</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 라이선스 -->
+<dialog id="licenseDlg" class="dlg license" aria-labelledby="licTitle">
+  <form method="dialog">
+    <h3 id="licTitle">라이선스</h3>
+    <div class="lic">
+      <ul class="lic-list"></ul>
+      <div class="lic-body"><div class="lic-meta"></div><pre class="lic-text mono"></pre></div>
+    </div>
+    <div class="row end"><button value="close" class="primary">닫기</button></div>
+  </form>
+</dialog>
+
+<!-- 권한/소유자 -->
+<dialog id="chmodDlg" class="dlg narrow">
+  <form method="dialog" autocomplete="off">
+    <h3>권한 / 소유자</h3>
+    <p class="mono" id="cmPath"></p>
+    <table class="perm">
+      <tr><th></th><th>읽기</th><th>쓰기</th><th>실행</th></tr>
+      <tr><td>소유자</td><td><input type="checkbox" data-bit="256"></td><td><input type="checkbox" data-bit="128"></td><td><input type="checkbox" data-bit="64"></td></tr>
+      <tr><td>그룹</td><td><input type="checkbox" data-bit="32"></td><td><input type="checkbox" data-bit="16"></td><td><input type="checkbox" data-bit="8"></td></tr>
+      <tr><td>기타</td><td><input type="checkbox" data-bit="4"></td><td><input type="checkbox" data-bit="2"></td><td><input type="checkbox" data-bit="1"></td></tr>
+    </table>
+    <div class="grid3">
+      <label>8진수<input name="octal" maxlength="4" class="mono"></label>
+      <label>소유자<input name="owner"></label>
+      <label>그룹<input name="group"></label>
+    </div>
+    <label class="check" id="cmRecRow"><input type="checkbox" name="recursive"> 하위 폴더·파일까지 모두 적용</label>
+    <div class="row end">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="ok" class="primary">적용</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 원격 파일 편집기 -->
+<dialog id="editorDlg" class="dlg editor">
+  <div class="ed-head">
+    <span id="edPath" class="mono grow"></span>
+    <span id="edInfo" class="hint"></span>
+    <button id="edDiff" title="열었을 때와 지금 내용 비교">변경 내용</button>
+    <button id="edSave" class="primary" title="Ctrl+S">저장</button>
+    <button id="edClose">닫기</button>
+  </div>
+  <div id="edWarn" class="ed-warn" hidden></div>
+  <div class="ed-body">
+    <pre id="edGutter" aria-hidden="true"></pre>
+    <textarea id="edText" spellcheck="false" wrap="off"></textarea>
+  </div>
+</dialog>
+
+<!-- 붙여넣기 확인 -->
+<dialog id="pasteDlg" class="dlg">
+  <form method="dialog" autocomplete="off">
+    <h3>붙여넣기 확인</h3>
+    <p class="paste-warn" id="pasteWarn" hidden></p>
+    <span class="hint" id="pasteInfo"></span>
+    <textarea id="pasteText" class="mono" spellcheck="false" wrap="off"></textarea>
+    <div class="row">
+      <label class="check">줄 사이 쉬기
+        <select id="pasteDelay"><option value="0">없음</option><option value="50">50ms</option><option value="200">200ms (장비 CLI)</option><option value="500">500ms</option></select>
+      </label>
+      <span class="grow hint">보내기 전에 여기서 고칠 수 있습니다</span>
+    </div>
+    <div class="row end">
+      <button value="cancel" formnovalidate>취소</button>
+      <button value="ok" class="primary">붙여넣기</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 명령 팔레트 -->
+<dialog id="paletteDlg" class="dlg palette">
+  <input class="pq" placeholder="세션 이름·호스트, 또는 동작(분할, 터널, 설정…)" spellcheck="false" autocomplete="off">
+  <div class="pl"></div>
+  <div class="pfoot">↑↓ 이동 · Enter 실행 · Shift+Enter 새 탭으로 · Esc 닫기 · <b>&gt;</b> 로 시작하면 동작만</div>
+</dialog>
+
+<div id="ctxMenu" class="ctx" hidden></div>
+<div id="toast" popover="manual"></div>
+
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+<script src="vendor/addon-web-links.js"></script>
+<script src="core.js"></script>
+<script src="themes.js"></script>
+<script src="highlight.js"></script>
+<script src="termx.js"></script>
+<script src="app.js"></script>
+<script src="sftp.js"></script>
+<script src="tree.js"></script>
+<script src="tunnels.js"></script>
+<script src="palette.js"></script>
+<script src="multiexec.js"></script>
+<script src="vnc.js"></script>
+<script src="tools.js"></script>
+<script src="diff.js"></script>
+<script src="about.js"></script>
+</body>
+</html>

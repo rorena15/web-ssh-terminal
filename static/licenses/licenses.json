@@ -1,0 +1,135 @@
+[
+ {
+  "id": "app",
+  "name": "W.S.T (Web SSH Terminal)",
+  "version": "",
+  "license": "GPL-3.0-or-later",
+  "url": "https://github.com/rorena15/web-ssh-terminal",
+  "files": [
+   "wst.txt"
+  ],
+  "note": "Copyright (C) 2026 rorena15. GNU General Public License v3.0 이상으로 배포합니다."
+ },
+ {
+  "id": "xterm",
+  "name": "xterm.js (+ addon-fit, addon-web-links)",
+  "version": "vendored",
+  "license": "MIT",
+  "url": "https://github.com/xtermjs/xterm.js/blob/master/LICENSE",
+  "files": [],
+  "note": "전문 미포함 — 위 주소에서 확인"
+ },
+ {
+  "id": "novnc",
+  "name": "noVNC",
+  "version": "vendored",
+  "license": "MPL-2.0 (일부 파일 BSD/MIT 등)",
+  "url": "https://github.com/novnc/noVNC",
+  "files": [
+   "novnc.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "paramiko",
+  "name": "paramiko",
+  "version": "5.0.0",
+  "license": "LGPL-2.1",
+  "url": "https://www.paramiko.org/",
+  "files": [
+   "paramiko.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "cryptography",
+  "name": "cryptography",
+  "version": "49.0.0",
+  "license": "Apache-2.0 OR BSD-3-Clause",
+  "url": "https://github.com/pyca/cryptography",
+  "files": [
+   "cryptography.txt",
+   "cryptography-1.txt",
+   "cryptography-2.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "websockets",
+  "name": "websockets",
+  "version": "17.2",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/python-websockets/websockets",
+  "files": [
+   "websockets.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "pywinpty",
+  "name": "pywinpty",
+  "version": "3.1.0",
+  "license": "MIT",
+  "url": "https://github.com/andfoy/pywinpty",
+  "files": [
+   "pywinpty.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "bcrypt",
+  "name": "bcrypt",
+  "version": "5.0.0",
+  "license": "Apache-2.0",
+  "url": "https://github.com/pyca/bcrypt",
+  "files": [
+   "bcrypt.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "pynacl",
+  "name": "PyNaCl",
+  "version": "1.6.2",
+  "license": "Apache-2.0",
+  "url": "https://github.com/pyca/pynacl",
+  "files": [
+   "pynacl.txt",
+   "pynacl-1.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "cffi",
+  "name": "cffi",
+  "version": "2.1.0",
+  "license": "MIT-0",
+  "url": "https://github.com/python-cffi/cffi",
+  "files": [
+   "cffi.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "pycparser",
+  "name": "pycparser",
+  "version": "3.0",
+  "license": "BSD-3-Clause",
+  "url": "https://github.com/eliben/pycparser",
+  "files": [
+   "pycparser.txt"
+  ],
+  "note": ""
+ },
+ {
+  "id": "python",
+  "name": "Python",
+  "version": "3.14.5",
+  "license": "PSF-2.0",
+  "url": "https://docs.python.org/3/license.html",
+  "files": [
+   "python.txt"
+  ],
+  "note": ""
+ }
+]
