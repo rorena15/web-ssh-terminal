@@ -47,4 +47,4 @@
 | README 영어·한국어 + 스크린샷 6장 `docs/SPEC_README_2026-11-05.md` | ✅ 11/5 — 스크린샷 5장(Codex 도구 `dev/harness/readme_*`, Claude 촬영·확인, agy flash 판정), README 초안 Codex(agy argon 한도로 대체)·Claude 검토 |
 | 보안 2차 수정, Python 3.14.10 | ✅ 11/5 |
 | 공개 전 점검: 히스토리·내부 이름 | ✅ 11/5 공개 저장소는 새 히스토리(커밋 1개), 전체 기록은 비공개 rorena15/web-ssh-terminal-history. 내부 문서(명세·리뷰·메모리 사본·시안)는 추적 제외, 화면 예시·저장소 식별자에서 내부 이름 제거 |
-| exe 빌드 → zip → GitHub 릴리즈 v1.0.0, 저장소 공개 | 🔄 11/5 zip 새 폴더 실행 확인 |
+| exe 빌드 → zip → GitHub 릴리즈 v1.0.0, 저장소 공개 | ✅ 11/5 공개 저장소 rorena15/web-ssh-terminal(새로 만듦, 커밋 1개·noreply), 릴리즈 v1.0.0 + W.S.T-v1.0.0-win64.zip(SHA-256 ac42be4a…, 업로드본 해시 일치). 옛 비공개 저장소는 web-ssh-terminal-old로 이름 변경 |
