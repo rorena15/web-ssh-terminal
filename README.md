@@ -15,7 +15,7 @@ A remote access tool that brings SSH and communication features to the browser.
 A small Python relay server running on this PC connects Chrome to remote servers.
 
 ```
-Chrome (xterm.js, noVNC) ──WSS── relay server ──SSH── [proxy ─ jump hosts … ──] target server
+Chrome (xterm.js, noVNC) ──WebSocket (127.0.0.1)── relay server ──SSH── [proxy ─ jump hosts … ──] target server
 ```
 
 **Requirements**: Windows 10/11, Google Chrome. Python 3.14 to run from source. The UI is currently Korean only.
@@ -62,9 +62,9 @@ Configure interface and terminal themes, fonts, and shortcuts. Hide unused menus
 2. Extract it and keep `W.S.T.exe` beside its `_internal` folder.
 3. Double-click `W.S.T.exe`.
 
-The app opens `https://127.0.0.1:8022/` in a Chrome app window without a console window.
+The app opens `http://127.0.0.1:8022/` in a Chrome app window without a console window. No certificate installation is needed.
 
-On the first launch, Windows displays a certificate installation prompt. Choose Yes (예) to install a local CA used only on this PC. Chrome will not show certificate warnings afterwards.
+On a PC that used v1.0.x, the first launch asks whether to remove the local certificate authority (CA) installed by the previous version. Choosing Yes (예) is recommended. To remove it later, run `W.S.T.exe --remove-legacy-ca` (from source: `python server.py --remove-legacy-ca`). Because the address changes, display settings stored only in the browser (theme, fonts, layout and so on) are reset once. Sessions, settings and the password vault are kept.
 
 To stop the server, open Settings (⚙설정) → Behavior (동작) → Shut down server (서버 종료). Closing all app windows also stops the server after one minute, unless an SSH tunnel is running.
 
@@ -76,25 +76,19 @@ Required packages: `paramiko`, `websockets`, `cryptography`, and `pywinpty`.
 
 ```powershell
 python -m pip install paramiko "websockets>=17.4" cryptography pywinpty
-pythonw server.py --open --trust --auto-exit
+pythonw server.py --open --auto-exit
 ```
 
 The launch command uses the same options as running the executable without arguments.
 
 For console logs, run `실행(콘솔).bat`. This source launcher installs the required packages if they are missing. `실행.vbs` is also provided for launching from source.
 
-To accept connections from other PCs:
-
-```powershell
-python server.py --host 0.0.0.0
-```
-
-Remote mode requires a token and disables features that control the host PC. See the security notes below.
+W.S.T opens only on this PC. Remote mode (`--host 0.0.0.0`), which accepted connections from other PCs, was removed in v1.1.
 
 ## Security
 
-- The default bind address is `127.0.0.1`. Remote mode requires a token and restricts access to host-PC features.
-- HTTPS uses a local CA with Name Constraints for localhost and private IP addresses.
+- The server listens only on loopback addresses (`127.0.0.1`, `::1`) and requires an access token generated at each start. Requests whose Host header is not `127.0.0.1`, `localhost` or `[::1]` with the actual port are rejected (DNS rebinding protection).
+- Traffic stays on this PC (loopback), so no TLS or local CA is used. Chrome treats `http://127.0.0.1` as a secure origin.
 - WebSocket Origin checks protect against cross-site WebSocket hijacking. SSH host keys use trust on first use (TOFU); a changed key is rejected until explicitly replaced.
 - Optional password storage uses Windows DPAPI. A master password adds a scrypt and AES-GCM layer.
 - Local tunnels listen only on loopback addresses. Reverse tunnels default to a remote bind address of `127.0.0.1`.
@@ -103,7 +97,7 @@ Remote mode requires a token and disables features that control the host PC. See
 <details>
 <summary>Detailed security behavior</summary>
 
-Remote mode (`--host 0.0.0.0`) disables local terminals, RDP launching, file selection dialogs, host-PC private key files, SSH agents, reverse tunnels, X11, Serial, and host-PC path settings for logs and shared sessions. It also blocks direct VNC, Telnet, and proxy connections to services on the host PC's `127.0.0.1`.
+The TFTP and HTTP file servers listen on `127.0.0.1` by default. Choosing another address requires confirming that the folder will be open without authentication to the same network. SFTP drag-out download links work only once.
 
 Passwords and key passphrases are written to disk only through the optional DPAPI vault. Running tunnels retain credentials in server memory for reconnection.
 
@@ -271,7 +265,7 @@ The SFTP/FTP/SCP sidebar opens automatically when an SSH connection is establish
 | `wst/localterm.py` | Local terminal through ConPTY |
 | `wst/api.py` | Session tree and settings persistence, tunnel control, RDP launching, and version information |
 | `wst/hotkey.py`, `wst/taskbar.py`, `wst/foreground.py` | Global popup-terminal shortcut, taskbar icon, and foreground handling |
-| `wst/tls.py`, `wst/common.py` | Certificates and shared configuration |
+| `wst/tls.py`, `wst/common.py` | Previous-version local CA cleanup, shared configuration |
 | `static/` | Interface modules: `core`, `app`, `tree`, `sftp`, `tunnels`, `vnc`, `multiexec`, `palette`, `tools`, `diff`, `highlight`, `themes`, `termx`, and `about` JavaScript; dependency licenses under `licenses/` |
 | `data/` | `sessions.json` for sessions/folders/tunnels, `settings.json`, `known_hosts`, `vault.bin`, `rdp/`, and `x11/`; back up this folder only |
 | `logs/` | Session logs; location configurable in Settings (⚙설정) |

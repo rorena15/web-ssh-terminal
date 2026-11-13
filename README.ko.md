@@ -15,7 +15,7 @@ SSH 및 통신 기능을 브라우저로 옮긴 원격 접속 도구.
 이 PC에서 실행하는 작은 Python 중계 서버가 Chrome과 원격 서버를 연결합니다.
 
 ```
-Chrome(xterm.js·noVNC) ──WSS── 중계 서버 ──SSH── [프록시 ─ 점프 호스트 … ──] 대상 서버
+Chrome(xterm.js·noVNC) ──WebSocket(127.0.0.1)── 중계 서버 ──SSH── [프록시 ─ 점프 호스트 … ──] 대상 서버
 ```
 
 **요구 사항**: Windows 10/11, Google Chrome. 소스 실행 시 Python 3.14
@@ -62,9 +62,9 @@ Windows 원격 데스크톱 클라이언트로 RDP를 실행하고, 브라우저
 2. 압축을 풀고 `W.S.T.exe`와 `_internal` 폴더를 함께 둡니다.
 3. `W.S.T.exe`를 더블클릭합니다.
 
-콘솔 창 없이 Chrome 앱 창으로 `https://127.0.0.1:8022/`가 열립니다.
+콘솔 창 없이 Chrome 앱 창으로 `http://127.0.0.1:8022/`가 열립니다. 인증서 설치는 필요 없습니다.
 
-첫 실행에는 Windows 인증서 설치 안내가 표시됩니다. **예**를 선택하면 이 PC 전용 로컬 CA가 설치되고, 이후 Chrome 인증서 경고가 나오지 않습니다.
+v1.0.x를 쓰던 PC에서 처음 실행하면 이전 버전이 설치한 로컬 인증서(CA)를 제거할지 묻습니다. **예**를 권장합니다. 나중에 지우려면 `W.S.T.exe --remove-legacy-ca`(소스 실행은 `python server.py --remove-legacy-ca`)를 실행합니다. 주소가 바뀌어 브라우저에만 저장되던 화면 설정(테마·글꼴·배치 등)은 한 번 초기화됩니다. 세션·설정·비밀번호 저장소는 그대로입니다.
 
 종료하려면 ⚙설정 → 동작 → 서버 종료를 선택합니다. 앱 창을 모두 닫으면 1분 뒤 서버가 자동 종료되지만, SSH 터널이 실행 중이면 계속 유지됩니다.
 
@@ -76,25 +76,19 @@ Windows 원격 데스크톱 클라이언트로 RDP를 실행하고, 브라우저
 
 ```powershell
 python -m pip install paramiko "websockets>=17.4" cryptography pywinpty
-pythonw server.py --open --trust --auto-exit
+pythonw server.py --open --auto-exit
 ```
 
 위 실행 명령은 exe를 인수 없이 실행할 때와 같은 옵션을 사용합니다.
 
 콘솔 로그가 필요하면 `실행(콘솔).bat`을 실행합니다. 이 소스 실행 파일은 필요한 패키지가 없으면 설치합니다. `실행.vbs`도 소스 실행용으로 제공됩니다.
 
-다른 PC에서도 접속하려면 다음과 같이 실행합니다.
-
-```powershell
-python server.py --host 0.0.0.0
-```
-
-원격 모드에서는 토큰이 필수이며, 이 PC를 조작하는 기능이 차단됩니다. 아래 보안 설명을 확인하세요.
+W.S.T는 이 PC에서만 열립니다. 다른 PC에서 접속하는 원격 모드(`--host 0.0.0.0`)는 v1.1에서 제거했습니다.
 
 ## 보안 요약
 
-- 기본 바인딩 주소는 `127.0.0.1`입니다. 원격 모드는 토큰을 요구하고 이 PC의 기능에 대한 접근을 제한합니다.
-- HTTPS는 localhost·사설 IP 범위의 Name Constraints가 설정된 로컬 CA를 사용합니다.
+- 루프백 주소(`127.0.0.1`, `::1`)에만 열리며 실행마다 만드는 접속 토큰이 있어야 합니다. 요청의 Host 헤더가 `127.0.0.1`·`localhost`·`[::1]`과 실제 포트가 아니면 거부합니다(DNS 리바인딩 방어).
+- 통신은 이 PC 안(루프백)에서만 오가므로 TLS와 로컬 CA를 쓰지 않습니다. Chrome은 `http://127.0.0.1`을 안전한 출처로 취급합니다.
 - WebSocket Origin 검사로 교차 사이트 WebSocket 하이재킹을 차단합니다. SSH 호스트 키는 TOFU 방식으로 확인하며, 변경된 키는 명시적으로 교체하기 전까지 접속을 거부합니다.
 - 선택 사항인 비밀번호 저장소는 Windows DPAPI를 사용합니다. 마스터 비밀번호를 설정하면 scrypt와 AES-GCM 보호를 추가합니다.
 - 로컬 터널은 루프백 주소에만 열립니다. 역방향 터널의 원격 바인딩 기본값은 `127.0.0.1`입니다.
@@ -103,7 +97,7 @@ python server.py --host 0.0.0.0
 <details>
 <summary>자세한 보안 동작</summary>
 
-원격 모드(`--host 0.0.0.0`)에서는 로컬 터미널, RDP 실행, 파일 선택창, 이 PC의 개인키 파일, SSH 에이전트, 역방향 터널, X11, Serial, 로그·공유 경로 등 이 PC 경로 설정을 차단합니다. 이 PC의 `127.0.0.1` 서비스로 가는 VNC·Telnet·프록시 직접 연결도 차단합니다.
+TFTP·HTTP 파일 서버는 기본으로 `127.0.0.1`에 열리고, 다른 주소를 고르면 같은 네트워크에 인증 없이 열린다는 확인을 거칩니다. SFTP 끌어 내려받기 주소는 한 번만 쓸 수 있습니다.
 
 비밀번호와 키 암호는 선택 사항인 DPAPI 저장소를 통해서만 디스크에 저장합니다. 실행 중인 터널은 재연결을 위해 자격 정보를 서버 메모리에 보관합니다.
 
@@ -271,7 +265,7 @@ SFTP·FTP·SCP 사이드바는 SSH 접속 시 자동으로 열립니다.
 | `wst/localterm.py` | ConPTY 로컬 터미널 |
 | `wst/api.py` | 세션 트리·설정 저장, 터널 제어, RDP 실행, 버전 정보 |
 | `wst/hotkey.py`, `wst/taskbar.py`, `wst/foreground.py` | 팝업 터미널 전역 단축키, 작업표시줄 아이콘, 외부 창을 맨 앞으로 표시 |
-| `wst/tls.py`, `wst/common.py` | 인증서, 공통 설정 |
+| `wst/tls.py`, `wst/common.py` | 이전 버전 로컬 CA 정리, 공통 설정 |
 | `static/` | 화면 JavaScript: `core`·`app`·`tree`·`sftp`·`tunnels`·`vnc`·`multiexec`·`palette`·`tools`·`diff`·`highlight`·`themes`·`termx`·`about`. `licenses/`에는 오픈소스 라이선스 |
 | `data/` | 세션·폴더·터널용 `sessions.json`, `settings.json`, `known_hosts`, `vault.bin`, `rdp/`, `x11/`. 백업은 이 폴더만 |
 | `logs/` | 세션 로그. 설정에서 위치 변경 가능 |

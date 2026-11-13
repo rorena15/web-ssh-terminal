@@ -14,7 +14,7 @@ DATA.mkdir(exist_ok=True)
 if not os.environ.get("WEBSSH_DATA") and (BASE / "known_hosts").exists() and not KNOWN_HOSTS.exists():  # 이전 버전 위치에서 옮김
     (BASE / "known_hosts").replace(KNOWN_HOSTS)
 
-# 127.0.0.1에만 바인딩된 경우에만 True → 로컬 터미널·RDP 실행·파일 선택창 등 "이 PC를 조작하는" 기능 허용
+# 서버는 루프백 전용이므로 항상 True → 로컬 터미널·RDP 실행·파일 선택창 등 "이 PC를 조작하는" 기능 허용
 LOCAL_MODE = True
 
 

@@ -119,7 +119,7 @@ def listening():
 
 # ── TFTP 서버 (RFC 1350, octet/netascii, 블록 512) ─────────────
 class TftpServer:
-    def __init__(self, root, bind="0.0.0.0", port=69, allow_write=False, on_log=None):
+    def __init__(self, root, bind="127.0.0.1", port=69, allow_write=False, on_log=None):
         self.root, self.bind, self.port, self.allow_write = Path(root).resolve(), bind, int(port), allow_write
         self.on_log = on_log or (lambda m: None)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -230,7 +230,7 @@ class TftpServer:
 
 # ── HTTP 파일 서버 (폴더 공유, 목록 보기) ─────────────────────
 class HttpServer:
-    def __init__(self, root, bind="0.0.0.0", port=8000):
+    def __init__(self, root, bind="127.0.0.1", port=8000):
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *a):              # 콘솔·server.log에 요청마다 찍지 않음
                 pass

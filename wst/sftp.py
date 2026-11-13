@@ -71,7 +71,7 @@ def make_ticket(sess, srv_path, name):
 
 def read_ticket(tok):
     """(이름, 내용) 또는 None. 블로킹 → 스레드에서 호출."""
-    t = DL_TICKETS.get(tok)
+    t = DL_TICKETS.pop(tok, None)
     if not t or t[3] < time.time():
         return None
     sess, path, name, _ = t

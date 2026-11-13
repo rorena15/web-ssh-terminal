@@ -1,16 +1,14 @@
 """W.S.T — 브라우저 SSH 클라이언트의 중계 서버.
 
-실행:  python server.py --open --trust  → 크롬 앱 창 + 로컬 CA 신뢰 등록(최초 1회)
-       python server.py                 → https://127.0.0.1:8022 (이 PC에서만)
-       python server.py --host 0.0.0.0  → 다른 PC에서도 접속 (토큰 필수, 로컬 터미널·RDP 실행은 꺼짐)
+실행:  python server.py --open  → 크롬 앱 창
+       python server.py         → http://127.0.0.1:8022 (이 PC에서만)
 
 WebSocket 경로
   /ws     SSH 터미널 (term.py)          /sftp   SFTP (sftp.py, 터미널 세션에 붙음)
   /local  로컬 터미널 (localterm.py)    /api    세션 트리·설정·터널·RDP (api.py)
 
 보안 메모
-- 기본 바인딩 127.0.0.1. 외부 바인딩 시 토큰 없으면 403, 이 PC를 조작하는 기능(로컬 터미널/RDP/파일 선택)은 비활성.
-- HTTPS: certs/ 로컬 CA(Name Constraints로 localhost·사설 IP만 발급 가능).
+- 루프백 바인딩만 허용. Host 검사로 DNS 리바인딩 차단.
 - WebSocket Origin 검사로 CSWSH 차단. 비밀번호/키 암호는 저장하지 않음.
 - 호스트 키 TOFU (known_hosts), 키가 바뀌면 접속 거부.
 """
@@ -160,6 +158,12 @@ def _token_ok(query):
 
 
 async def process_request(connection, request):
+    hosts = request.headers.get_all("Host")
+    port = connection.local_address[1]
+    if len(hosts) != 1 or hosts[0].lower() not in (
+            f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"):
+        return _resp(421, b"misdirected request")
+    host = hosts[0]
     url = urlsplit(request.path)
     path = url.path
 
@@ -180,14 +184,9 @@ async def process_request(connection, request):
         if not _token_ok(url.query):
             return _resp(403, b"forbidden")
         origin = request.headers.get("Origin")
-        host = request.headers.get("Host", "")
-        if origin not in (f"http://{host}", f"https://{host}"):
+        if origin != f"http://{host}":
             return _resp(403, b"bad origin")
         return None  # WebSocket 핸드셰이크 진행
-
-    if path == "/ca.crt" and tls.CA_CRT.exists():   # 다른 PC에서 CA 받아 신뢰 등록할 때
-        return _resp(200, tls.CA_CRT.read_bytes(), "application/x-x509-ca-cert",
-                     [("Content-Disposition", 'attachment; filename="webssh-ca.crt"')])
 
     # replaceState 뒤 새로고침은 토큰 없는 HTML을 받고 sessionStorage로 WS 인증을 이어간다.
     if path == "/":
@@ -226,14 +225,14 @@ async def handler(ws):
 
 
 # ── 실행 ─────────────────────────────────────────────────────
-def _warn_websockets_version():
-    version = websockets.__version__
+def _check_websockets_version(version: str) -> str | None:
     match = re.match(r"^(\d+)\.(\d+)(.*)$", version)
     if match and (tuple(map(int, match.group(1, 2))) < (17, 4)
                   or (tuple(map(int, match.group(1, 2))) == (17, 4)
                       and re.search(r"(?:a|b|rc|dev)\d*", match.group(3)))):
-        logging.warning("websockets %s: 보안 업데이트가 필요합니다 (요구 버전: websockets>=17.4, "
-                        "GHSA-6m5v-9gmr-5665). 실행은 계속합니다.", version)
+        return (f"websockets {version}: 보안 업데이트가 필요합니다 (요구 버전: websockets>=17.4, "
+                "GHSA-6m5v-9gmr-5665).")
+    return None
 
 
 def _find_chrome():
@@ -255,30 +254,48 @@ def _open_browser(url):
         foreground.open_foreground(lambda: webbrowser.open(url), match=foreground.browser_window, reuse=True)
 
 
-def _setup_tls(want_trust):
-    new_ca = tls.ensure_certs()
-    if new_ca:
-        print(f"로컬 CA 생성: {tls.CA_CRT}")
-    trusted = tls.ca_trusted()
-    if trusted is False and want_trust:
-        print("인증서 신뢰 등록 중… Windows 보안 경고 창에서 '예'를 누르세요.")
-        trusted = tls.trust_ca()
-        print("  → 등록 완료 (크롬이 이미 켜져 있었다면 크롬을 다시 시작하세요)" if trusted
-              else "  → 등록 안 됨. 브라우저에서 '고급 → 계속'으로 접속하거나 다시 --trust로 실행하세요.")
-    elif trusted is False:
-        print("※ 로컬 CA가 아직 신뢰되지 않음 → 브라우저 경고가 뜹니다. `python server.py --trust` 1회 실행 권장.")
+def _cleanup_legacy_ca(remove=False, gui=False):
+    if not tls.legacy_present():
+        return
+    if not remove:
+        if common.settings().get("legacyCaKeep"):
+            return
+        message = "이전 버전이 설치한 로컬 인증서(CA)가 남아 있습니다. 이제 쓰지 않으므로 제거를 권장합니다. 제거할까요?"
+        if gui and os.name == "nt":
+            import ctypes
+            answer = ctypes.windll.user32.MessageBoxW(0, message, APP_NAME, 0x04 | 0x20 | 0x10000)
+            if answer != 6:   # IDYES
+                if answer == 7:   # IDNO
+                    settings = common.settings()
+                    settings["legacyCaKeep"] = True
+                    common.save("settings", settings)
+                return
+        else:
+            print("이전 버전의 로컬 인증서(CA)가 남아 있습니다. --remove-legacy-ca로 제거할 수 있습니다.")
+            return
+    result = tls.remove_legacy()
+    print(f"이전 CA 정리: {result}")
+    if result["error"] and gui:
+        msgbox(f"이전 CA 제거 실패: {result['error']}")
 
 
-def _who_has_port(port, scheme):
-    """None = 비어 있음, 'ours' = 이미 이 프로그램이 실행 중, 'other' = 다른 프로그램이 사용 중."""
+def _who_has_port(port):
+    """None = 비어 있음, ours = 이 프로그램, legacy = 이전 HTTPS 버전, other = 다른 프로그램."""
     try:
         socket.create_connection(("127.0.0.1", port), 1).close()
     except OSError:
         return None
     try:
-        body = urllib.request.urlopen(f"{scheme}://127.0.0.1:{port}/", timeout=3,
-                                      context=ssl._create_unverified_context()).read()
+        body = urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=3).read()
         return "ours" if APP_NAME.encode() in body else "other"
+    except urllib.error.HTTPError:
+        return "other"
+    except Exception:
+        pass
+    try:
+        body = urllib.request.urlopen(f"https://127.0.0.1:{port}/", timeout=3,
+                                      context=ssl._create_unverified_context()).read()
+        return "legacy" if APP_NAME.encode() in body else "other"
     except Exception:
         return "other"
 
@@ -304,31 +321,42 @@ async def main():
     ap.add_argument("--token", help="접속 토큰 (미지정이면 자동 생성)")
     ap.add_argument("--no-token", action="store_true", help="루프백에서만 토큰 없이 실행 (개발용)")
     ap.add_argument("--open", action="store_true", help="크롬 앱 창으로 열기")
-    ap.add_argument("--trust", action="store_true", help="로컬 CA를 현재 사용자 신뢰 루트에 등록 (최초 1회)")
-    ap.add_argument("--no-tls", action="store_true", help="HTTPS 끄기 (평문 HTTP)")
+    ap.add_argument("--trust", action="store_true", help="호환용, 무시")
+    ap.add_argument("--no-tls", action="store_true", help="호환용, 무시")
+    ap.add_argument("--remove-legacy-ca", action="store_true", help="이전 버전의 로컬 CA 신뢰 등록과 파일 제거")
     ap.add_argument("--auto-exit", action="store_true", help="브라우저 창을 모두 닫고 1분 지나면 종료 (터널 실행 중이면 유지)")
     ap.add_argument("--session", help="이 세션(이름 또는 id)을 바로 엽니다 (바탕화면 바로가기용, 이미 실행 중이면 새 창)")
     # exe를 더블클릭·시작프로그램으로 인수 없이 실행하면 실행.vbs와 같은 동작
     argv = sys.argv[1:]
     if common.FROZEN and argv and all(x.startswith("--session") or (i and argv[i - 1] == "--session") for i, x in enumerate(argv)):
-        argv = ["--open", "--trust", "--auto-exit"] + argv           # 바로가기: exe --session X 만 줘도 평소처럼 실행
-    a = ap.parse_args(argv or (["--open", "--trust", "--auto-exit"] if common.FROZEN else []))
+        argv = ["--open", "--auto-exit"] + argv           # 바로가기: exe --session X 만 줘도 평소처럼 실행
+    a = ap.parse_args(argv or (["--open", "--auto-exit"] if common.FROZEN else []))
     loopback = a.host in ("127.0.0.1", "localhost", "::1")
-    if a.no_token and not loopback:
-        ap.error("--no-token은 루프백에서만 사용할 수 있습니다")
+    if not loopback:
+        ap.error("원격 모드는 v1.1에서 제거되었습니다. --host는 127.0.0.1·::1·localhost만 쓸 수 있습니다")
     from urllib.parse import quote as _q
     open_q = f"?open={_q(a.session)}" if a.session else ""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # cp949 콘솔에서 출력 오류 방지
-    _warn_websockets_version()
+    version_error = _check_websockets_version(websockets.__version__)
+    if version_error:
+        print(version_error)
+        if HIDDEN:
+            msgbox(version_error)
+        raise SystemExit(1)
 
     # 이미 실행 중이면 새로 띄우지 않고 기존 서버의 창만 연다
-    scheme = "http" if a.no_tls else "https"
-    who = _who_has_port(a.port, scheme)
+    who = _who_has_port(a.port)
     if who == "ours":
         print("이미 실행 중 → 창만 엽니다.")
         if a.open or a.session:
-            _open_browser(_token_url(f"{scheme}://127.0.0.1:{a.port}/{open_q}", _read_token()))
+            _open_browser(_token_url(f"http://127.0.0.1:{a.port}/{open_q}", _read_token()))
+        return
+    if who == "legacy":
+        msg = "이전 버전 W.S.T가 실행 중입니다. ⚙설정 → 서버 종료로 끈 뒤 다시 실행하세요."
+        print(msg)
+        if HIDDEN:
+            msgbox(msg)
         return
     if who == "other":
         msg = f"포트 {a.port}를 다른 프로그램이 쓰고 있습니다. --port 로 다른 포트를 지정하세요."
@@ -337,7 +365,7 @@ async def main():
             msgbox(msg)
         return
 
-    # 브라우저가 TLS 연결을 끊을 때 Windows Proactor가 내는 무해한 ConnectionResetError 로그 숨김
+    # 브라우저가 연결을 끊을 때 Windows Proactor가 내는 무해한 ConnectionResetError 로그 숨김
     loop = asyncio.get_running_loop()
 
     def _quiet(lp, ctx):
@@ -346,33 +374,23 @@ async def main():
         lp.default_exception_handler(ctx)
     loop.set_exception_handler(_quiet)
 
-    common.LOCAL_MODE = loopback
     TOKEN = None if a.no_token else a.token or secrets.token_urlsafe(24)
     if a.no_token:
         logging.warning("토큰 없이 실행 중(개발용)")
-
-    ssl_ctx = None
-    if not a.no_tls:
-        _setup_tls(a.trust)
-        ssl_ctx = tls.ssl_context()
 
     ws_logger = logging.getLogger("websockets.server")
     ws_logger.addFilter(_TokenLogFilter())
     token_file_owned = False
     try:
-        async with serve(handler, a.host, a.port, process_request=process_request, ssl=ssl_ctx,
+        async with serve(handler, a.host, a.port, process_request=process_request, ssl=None,
                          logger=ws_logger, max_size=4 << 20, ping_interval=20, close_timeout=2) as server:
             token_file_owned = True
             _write_token()
-            scheme = "http" if a.no_tls else "https"
-            shown = "127.0.0.1" if a.host in ("0.0.0.0", "::") else a.host
-            url = _token_url(f"{scheme}://{shown}:{a.port}/{open_q}", TOKEN)
+            await asyncio.to_thread(_cleanup_legacy_ca, a.remove_legacy_ca, HIDDEN or a.open)
+            shown = f"[{a.host}]" if a.host == "::1" else a.host
+            port = server.sockets[0].getsockname()[1]
+            url = _token_url(f"http://{shown}:{port}/{open_q}", TOKEN)
             print(f"W.S.T 실행 중 → {_mask_token(url)}")
-            if not loopback:
-                if not a.token:
-                    print(f"접속 토큰: {common.DATA / 'token'} 파일 내용을 ?t= 로 붙이세요")
-                print("  (다른 PC에서는 이 PC의 IP로 접속, 인증서 경고 없애려면 /ca.crt 받아서 신뢰 등록)")
-                print("  ※ 외부 바인딩이라 로컬 터미널·RDP 실행·파일 선택 기능은 꺼져 있습니다.")
             print("종료: 화면의 ⚙설정 → 서버 종료" + ("" if HIDDEN else " 또는 Ctrl+C"))
             if loopback:
                 from wst import hotkey

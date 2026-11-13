@@ -118,10 +118,10 @@ async function serverTool(kind) {
     <div class="row"><button class="primary sv-go"></button><span class="sv-st grow hint"></span></div>
     <pre class="sv-log mono"></pre>`);
   const st = await api.call('servers');
-  $('.sv-bind', b).innerHTML = ['0.0.0.0', '127.0.0.1', ...st.ips].map((ip) => `<option>${ip}</option>`).join('');
+  $('.sv-bind', b).innerHTML = ['127.0.0.1', '0.0.0.0', ...st.ips].map((ip) => `<option>${ip}</option>`).join('');
   const prev = store.get('srv.' + kind, {});
   $('.sv-root', b).value = prev.root || '';
-  $('.sv-bind', b).value = prev.bind || '0.0.0.0';
+  $('.sv-bind', b).value = prev.bind || '127.0.0.1';
   $('.sv-port', b).value = prev.port || (kind === 'tftp' ? 69 : 8000);
   $('.sv-write', b).checked = !!prev.write;
   const paint = (servers, ips) => {
@@ -139,6 +139,7 @@ async function serverTool(kind) {
   $('.sv-go', b).onclick = async () => {
     try {
       const cur = (await api.call('servers')).servers[kind];
+      if (!cur && $('.sv-bind', b).value !== '127.0.0.1' && !confirm('같은 네트워크의 다른 PC가 인증 없이 이 폴더에 접근할 수 있습니다. 계속할까요?')) return;
       const r = cur ? await api.call('serverStop', { kind })
         : await api.call('serverStart', { kind, root: $('.sv-root', b).value.trim(), bind: $('.sv-bind', b).value, port: +$('.sv-port', b).value, write: $('.sv-write', b).checked });
       if (!cur) store.set('srv.' + kind, { root: $('.sv-root', b).value.trim(), bind: $('.sv-bind', b).value, port: +$('.sv-port', b).value, write: $('.sv-write', b).checked });
