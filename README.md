@@ -70,6 +70,8 @@ To stop the server, open Settings (⚙설정) → Behavior (동작) → Shut dow
 
 If W.S.T is already running, launching it again opens another window without starting another server. Errors appear in a message window; detailed logs are written to `data/server.log`.
 
+From v1.2, W.S.T updates itself. While running, it checks for a new version once a day, downloads only the files that changed, and replaces them when W.S.T exits. It never replaces files while a connection or tunnel is open, and it does not touch `data/` or `logs/`. Turn it off or check now in Settings (⚙설정) → Automatic updates. Users of v1.1.x or earlier need to install v1.2 once by hand. Automatic updates are skipped in folders you cannot write to, such as Program Files.
+
 ### Run from source
 
 Required packages: `paramiko`, `websockets`, `cryptography`, and `pywinpty`.
@@ -95,6 +97,7 @@ See [SECURITY.md](SECURITY.md) for the security model, known issues and how to r
 - Optional password storage uses Windows DPAPI. A master password adds a scrypt and AES-GCM layer.
 - Local tunnels listen only on loopback addresses. Reverse tunnels default to a remote bind address of `127.0.0.1`.
 - X11 forwarding checks a substitute cookie before connecting with the local X server's real cookie.
+- Automatic updates only use a file list (manifest) whose Ed25519 signature is verified with the public key built into the exe, and check the SHA-256 of every downloaded file. Updates to an older version are refused.
 
 <details>
 <summary>Detailed security behavior</summary>

@@ -465,6 +465,12 @@ async def api_handler(ws):
                      "caps": {"local": common.LOCAL_MODE, "shells": localterm.available() if common.LOCAL_MODE else [],
                               "rdp": common.LOCAL_MODE and MSTSC.exists(),
                               "com": rawterm.list_com_ports() if common.LOCAL_MODE else []}}
+            elif op == "update_status":
+                from wst import update
+                r = update.status()
+            elif op == "update_check":
+                from wst import update
+                r = update.start_check()
             elif op == "saveData":
                 for session in m["data"].get("sessions", []):
                     _validate_rdp_strings(session)

@@ -55,6 +55,7 @@ SESSIONS = {}
 _lock = threading.Lock()
 
 DEFAULT_SETTINGS = {
+    "autoUpdate": True,         # 종료 시 준비된 업데이트 적용
     "logDir": "",               # 비우면 BASE/logs
     "logDefault": True,         # 새 SSH 세션의 로그 저장 기본값
     "monitor": True,            # 원격 모니터링 바

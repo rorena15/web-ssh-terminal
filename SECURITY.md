@@ -27,6 +27,10 @@ W.S.T is a **single-user tool that runs on one Windows PC**.
 - Saved passwords are optional and protected with Windows DPAPI for the current Windows account, optionally with a master password (scrypt + AES-GCM).
 - Anyone who can run code as your Windows account can use W.S.T the same way you can. Protect the account itself.
 
+### Updates
+
+Release files are built and signed by GitHub Actions. The signing key exists only as a GitHub secret, and signing needs approval in a protected environment. The app accepts an update only when the manifest signature matches the public key in the exe, the version is newer than the installed one, every path stays inside the program files (`W.S.T.exe`, `_internal`, `static`, documents), and every file matches its SHA-256. Files are replaced only after W.S.T exits, with a backup that is restored if anything fails.
+
 ### Known issues
 
 These are tracked and not yet fixed:
@@ -62,6 +66,10 @@ W.S.T는 **Windows PC 한 대에서 한 사람이 쓰는 도구**입니다.
 - SSH 호스트 키는 처음 접속할 때 확인합니다(TOFU). 키가 바뀌면 직접 교체하기 전까지 접속을 거부합니다.
 - 비밀번호 저장은 선택 사항이며, 현재 Windows 계정의 DPAPI로 보호합니다. 마스터 비밀번호를 설정하면 scrypt와 AES-GCM 보호가 더해집니다.
 - 내 Windows 계정으로 코드를 실행할 수 있는 사람은 W.S.T도 나와 똑같이 쓸 수 있습니다. 계정 자체를 보호하세요.
+
+### 업데이트
+
+릴리즈 파일은 GitHub Actions가 빌드하고 서명합니다. 서명 키는 GitHub Secret에만 있고, 서명은 보호된 환경에서 승인을 거쳐야 실행됩니다. 앱은 manifest 서명이 exe에 들어 있는 공개키와 맞고, 버전이 설치된 것보다 새롭고, 모든 경로가 프로그램 파일(`W.S.T.exe`, `_internal`, `static`, 문서) 안에 있고, 모든 파일의 SHA-256이 맞을 때만 업데이트를 받아들입니다. 파일 교체는 W.S.T가 종료된 뒤에만 하며, 백업을 만들어 두고 실패하면 되돌립니다.
 
 ### 알려진 문제
 

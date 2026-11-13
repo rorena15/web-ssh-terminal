@@ -34,6 +34,31 @@ from urllib.parse import parse_qs, quote, urlsplit, urlunsplit, parse_qsl, urlen
 from wst import common
 from wst import foreground
 
+# 적용 모드는 서버 패키지를 로드하거나 일반 인수를 파싱하기 전에 끝낸다.
+if __name__ == "__main__" and "--apply-update" in sys.argv[1:]:
+    from wst import update
+    def _update_arg(name, default=None):
+        for i, arg in enumerate(sys.argv[1:], 1):
+            if arg == name and i + 1 < len(sys.argv):
+                return sys.argv[i + 1]
+            if arg.startswith(name + "="):
+                return arg.split("=", 1)[1]
+        if name == "--lock-token":
+            return default
+        raise update.UpdateError("필수 인수 없음: " + name)
+    data_dir = Path(os.environ["WEBSSH_DATA"]) if os.environ.get("WEBSSH_DATA") else None
+    try:
+        target = Path(_update_arg("--target")).resolve()
+        data_dir = data_dir or target / "data"
+        result = update.apply_update(target, Path(_update_arg("--staging")).resolve(),
+                                     data_dir, int(_update_arg("--wait-pid")),
+                                     lock_token=_update_arg("--lock-token"))
+        raise SystemExit(0 if result["ok"] else 1)
+    except Exception as e:
+        if data_dir is not None:
+            update._log(data_dir, e)
+        raise SystemExit(1)
+
 APP_NAME = "W.S.T"
 HIDDEN = sys.stdout is None          # pythonw(창 없음)로 실행됨
 
@@ -315,6 +340,14 @@ async def _idle_exit(stop, grace=60):
 
 async def main():
     global TOKEN
+    from wst import update
+    try:
+        update._last_result = await asyncio.to_thread(update.startup_housekeeping, common.BASE, common.DATA)
+    except update.UpdateError as e:
+        print(e)
+        if HIDDEN:
+            msgbox(str(e))
+        return
     ap = argparse.ArgumentParser(description="W.S.T")
     ap.add_argument("--host", default="127.0.0.1", help="바인딩 주소 (기본 127.0.0.1)")
     ap.add_argument("--port", type=int, default=8022)
@@ -402,6 +435,7 @@ async def main():
                 _open_browser(url)
             stop = asyncio.Event()
             common.request_shutdown = lambda: loop.call_soon_threadsafe(stop.set)
+            update_task = asyncio.create_task(update.schedule()) if common.FROZEN else None
             if a.auto_exit:
                 asyncio.create_task(_idle_exit(stop))
             if loopback:
@@ -410,6 +444,8 @@ async def main():
             try:
                 await stop.wait()
             finally:
+                if update_task:
+                    update_task.cancel()
                 (common.DATA / "token").unlink(missing_ok=True)
                 manager.stop_all()
                 # 크롬 앱 창을 닫은 뒤 남는 연결 때문에 서버 정리가 끝나지 않아 프로세스가 계속 남는 일이 있었음
@@ -419,8 +455,12 @@ async def main():
                 except TimeoutError:
                     print("연결 정리가 5초 안에 끝나지 않아 강제 종료")
                     sys.stdout.flush()
-                    os._exit(0)
+                    try:
+                        update.launch_ready()
+                    finally:
+                        os._exit(0)
                 print("종료됨")
+        update.launch_ready()
     finally:
         if token_file_owned:
             (common.DATA / "token").unlink(missing_ok=True)

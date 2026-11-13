@@ -10,6 +10,7 @@ function showSettingsPane(name) {
   });
   $$('.tdlg-body section', dlg).forEach((s) => s.classList.toggle('on', s.dataset.pane === name));
   if (name === 'info') loadVersion().then(fillVersion);
+  if (name === 'behavior') refreshUpdate();
 }
 $$('#settingsDlg .tdlg-tabs button').forEach((b) => {
   b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'pane-' + b.dataset.pane);
@@ -47,6 +48,35 @@ function fillVersion(v) {
 // ── 창 열기 ───────────────────────────────────────────
 function openHelp() { $('#helpDlg').showModal(); }
 function openAbout() { loadVersion().then(fillVersion); $('#aboutDlg').showModal(); }
+
+function fillUpdate(s) {
+  $('#updateVersion').textContent = '현재 버전: v' + (s.current_version || '-');
+  $('#updateLast').textContent = '마지막 확인: ' + (s.last_check ? fmtTime(s.last_check) : '-');
+  $('#updateStatus').textContent = s.checking ? '확인 중…' : s.state === 'ready' ? `v${s.version} 준비됨 — 종료하면 설치` : s.state === 'latest' ? '최신 버전입니다' : s.error || '확인 전';
+  $('#updateCheck').disabled = !!s.checking;
+  if (s.last_result?.ok === false) {
+    toast(`업데이트 실패: ${s.last_result.error}`, 8000);
+  } else if (s.last_result?.ok) {
+    toast(`v${s.last_result.to}로 업데이트됨`, 8000);
+    const url = s.last_result.notes_url;
+    if (typeof url === 'string' && url.startsWith('https://github.com/rorena15/web-ssh-terminal/')) {
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = ' · 변경 사항';
+      $('#toast').append(a);
+    }
+  }
+}
+async function refreshUpdate() {
+  try { fillUpdate(await api.call('update_status')); }
+  catch (e) { $('#updateStatus').textContent = e.message; }
+}
+$('#updateCheck').onclick = async () => {
+  try { fillUpdate(await api.call('update_check')); }
+  catch (e) { $('#updateStatus').textContent = e.message; }
+};
+// 첫 연결 뒤 결과를 한 번 받고, 설정을 보는 동안에는 진행 상태를 갱신한다.
+refreshUpdate();
+setInterval(() => { if ($('#settingsDlg').open) refreshUpdate(); }, 2000);
 
 let LICENSES = null;
 async function openLicense() {

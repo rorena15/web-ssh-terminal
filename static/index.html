@@ -409,6 +409,11 @@
             <label><input type="checkbox" name="followFolder"> SFTP가 터미널 폴더 따라가기</label>
             <label title="어디서든 Ctrl+Alt+M → 창 불러오기 / 다시 누르면 숨기기"><input type="checkbox" name="globalHotkey"> 전역 단축키 Ctrl+Alt+M</label>
           </div>
+          <h4>자동 업데이트</h4>
+          <div class="checks"><label><input type="checkbox" name="autoUpdate"> 자동 업데이트 켜기</label></div>
+          <p class="hint" id="updateVersion">현재 버전: 확인 중…</p>
+          <p class="hint" id="updateLast">마지막 확인: -</p>
+          <div class="row"><span class="grow hint" id="updateStatus" role="status"></span><button type="button" id="updateCheck">지금 확인</button></div>
           <h4>중계 서버</h4>
           <div class="row"><span class="grow hint">끄면 열린 터널·접속이 모두 끊깁니다.</span><button type="button" id="shutdownBtn" class="danger-btn">서버 종료</button></div>
         </section>

@@ -20,6 +20,9 @@
 | `harness/t_b1.py` | 11/13 명세 B1(원격 모드·로컬 CA 제거, Host 검사, 이전 CA 정리, websockets 버전 거부, 파일 서버 기본 127.0.0.1, 다운로드 티켓 1회용) 시험 — agy가 `docs/SPEC_B1_2026-11-13.md`만 보고 작성, S5 가짜 세션 구조는 Claude 수정. 서버를 직접 띄움(빈 포트) |
 | `harness/t_dlout.js` | 11/13 SFTP 끌어 내려받기(Claude 검증): 행 pointerdown→dragstart의 DownloadURL로 받기, 같은 행 재끌기 200·쓴 링크 404·5개 동시 200. lib.js 앞에 붙임, 가짜 sshd 2222 루트의 `/home/test/f1.bin~f5.bin`(각 8MB) 필요 |
 | `harness/t_dlclose.py [저장소 루트]` | 11/13 끌어 내려받기 채널 캐시·세션 종료 정리(Claude 검증): 채널 재사용·직렬화, 죽은 채널 재시도, `close_dl`(진행 중 내려받기 뒤 닫기, 그 세션 링크 삭제, 이후 None). 서버·sshd 불필요 |
+| `harness/t_update.py [저장소 루트]` | 11/13 자동 업데이트 명세 시험 — agy가 `docs/SPEC_UPDATE_2026-11-13.md`만 보고 작성(https 처리기 우선순위·버전 파일 위치·plan 기대값은 Claude 수정). 서명·변조·다운그레이드·경로 규칙·Range/전체 받기·적용/복구·잠금·설정. 시험 키·로컬 HTTP 서버 사용, 인터넷 접속 없음 |
+| `harness/t_update_lock.py [저장소 루트]` | 11/13 업데이트 잠금(Claude 검증): 죽은·살아 있는 pid, 깨진 형식, 시작 정리, 인수 잠금 누수, launch_ready 예외 안전 |
+| `release/make_zip.py`, `make_manifest.py`, `sign_manifest.py`, `make_update_key.py` | 릴리즈 zip·manifest 생성, 서명(CI에서 `WST_UPDATE_KEY`), 업데이트 키 생성. CI `.github/workflows/release.yml`이 사용 |
 | `harness/t_rdp_launch.py` | 11/13 RDP 실행 방식 시험(Claude 검증): 기본 `mstsc /v:` 인수·옵션, 클립보드 끔·드라이브 연결만 .rdp 파일, 주소·문자열 주입 거부, 실제 mstsc에서 RDP 파일 보안 경고 없음(대상 127.0.0.1:1). `--no-real`이면 mstsc 미실행 |
 | `harness/t_sec2.py`, `t_sec2.js`, `t_sec2_front.py` | 11/5 보안 2차(T1 토큰·T2 프록시·T3 RDP·T4 바로가기·T5 option) 시험 — agy가 `docs/SPEC_SEC_2_2026-11-04.md`만 보고 작성(`t_sec2.py`), `t_sec2_front.py`는 Claude 검증(주소창 토큰 제거·새로고침·XSS, `python t_sec2_front.py dev/harness "http://127.0.0.1:18032/?t=sec2_token_test_12345"`, 서버는 `--token sec2_token_test_12345`) |
 | `harness/shot.py` | 1400×900 화면 캡처 |

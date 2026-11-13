@@ -1,0 +1,84 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14.10'
+      - name: Install build dependencies
+        run: python -m pip install paramiko==5.1.0 websockets==17.4 cryptography==50.0.2 pywinpty==3.1.2 pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.9 pillow==12.0.0
+      - name: Check tag version
+        shell: python
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          import os, re
+          from pathlib import Path
+          text = Path('build/version_info.txt').read_text(encoding='utf-8')
+          version = re.search(r"'FileVersion',\s*'([^']+)'", text).group(1)
+          if os.environ['RELEASE_TAG'] != 'v' + version:
+              raise SystemExit('Tag and FileVersion differ')
+      - run: python build/build_exe.py
+      - name: Package release
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python dev/release/make_zip.py --output "release/W.S.T-$env:RELEASE_TAG-win64.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python dev/release/make_manifest.py --zip "release/W.S.T-$env:RELEASE_TAG-win64.zip" --tag "$env:RELEASE_TAG" --output release/manifest.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-release
+          path: release/*
+          if-no-files-found: error
+
+  sign:
+    needs: build
+    runs-on: windows-latest
+    # 저장소 Settings에서 release 환경의 필수 승인자를 소유자로 설정한다.
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14.10'
+      - run: python -m pip install cryptography==50.0.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: unsigned-release
+          path: release
+      - name: Sign manifest
+        shell: pwsh
+        env:
+          WST_UPDATE_KEY: ${{ secrets.WST_UPDATE_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python dev/release/sign_manifest.py --manifest release/manifest.json --output release/manifest.json.sig --zip "release/W.S.T-$env:RELEASE_TAG-win64.zip" --tag "$env:RELEASE_TAG"
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          $notes = "docs/release-notes/v$version.md"
+          if (!(Test-Path -LiteralPath $notes)) {
+            $notes = 'release/notes.md'
+            git for-each-ref --format='%(contents)' "refs/tags/$env:RELEASE_TAG" | Set-Content -Encoding utf8 $notes
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          gh release create "$env:RELEASE_TAG" "release/W.S.T-$env:RELEASE_TAG-win64.zip" release/manifest.json release/manifest.json.sig --verify-tag --title "$env:RELEASE_TAG" --notes-file "$notes"
