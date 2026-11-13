@@ -173,6 +173,25 @@ def _validate_rdp_strings(s):
             raise ValueError(f"{key}에 제어문자를 쓸 수 없습니다")
 
 
+def _mstsc_args(s, address):
+    _validate_rdp_strings(s)
+    if not re.fullmatch(r'[A-Za-z0-9._\-\[\]:]+', address):
+        raise ValueError("RDP 주소 형식이 올바르지 않습니다")
+    if not s.get("clipboard", True) or s.get("drives"):
+        return [str(MSTSC), str(_rdp_file(s, address))]
+    args = [str(MSTSC), f"/v:{address}"]
+    if s.get("screen", "full") == "full":
+        args.append("/f")
+        if s.get("multimon"):
+            args.append("/multimon")
+    else:
+        w, _, h = (s.get("screen") or "1600x900").partition("x")
+        args += [f"/w:{int(w)}", f"/h:{int(h)}"]
+    if s.get("admin"):
+        args.append("/admin")
+    return args
+
+
 def _rdp_file(s, address):
     _validate_rdp_strings(s)
     _validate_rdp_strings({"host": address})
@@ -291,12 +310,12 @@ def _launch_rdp(s, data, sec, ask):
                         if saved.get("password") and s.get("username"):
                             vault.write_rdp_cred(host_only, s["username"], saved["password"])
                         entry[4] = t.target
-                        proc = foreground.open_foreground(lambda: subprocess.Popen([str(MSTSC), str(_rdp_file(s, address))]))
+                        proc = foreground.open_foreground(lambda: subprocess.Popen(_mstsc_args(s, address)), timeout=20, flash=True)
                         entry[3] += 1
             else:
                 if saved.get("password") and s.get("username"):
                     vault.write_rdp_cred(host_only, s["username"], saved["password"])
-                proc = foreground.open_foreground(lambda: subprocess.Popen([str(MSTSC), str(_rdp_file(s, address))]))
+                proc = foreground.open_foreground(lambda: subprocess.Popen(_mstsc_args(s, address)), timeout=20, flash=True)
     except Exception:
         with _rdp_lock:
             if tid and _rdp_release(s["id"]):

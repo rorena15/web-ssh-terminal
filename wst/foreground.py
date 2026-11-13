@@ -7,6 +7,12 @@ from ctypes import wintypes
 from functools import lru_cache
 
 
+class FLASHWINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("hwnd", wintypes.HWND),
+                ("dwFlags", wintypes.DWORD), ("uCount", wintypes.UINT),
+                ("dwTimeout", wintypes.DWORD)]
+
+
 @lru_cache(maxsize=1)
 def _user32():
     if os.name != "nt" or not hasattr(ctypes, "windll"):
@@ -22,6 +28,7 @@ def _user32():
         "GetWindowThreadProcessId": (wintypes.DWORD, [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]),
         "ShowWindowAsync": (wintypes.BOOL, [wintypes.HWND, ctypes.c_int]),
         "SetForegroundWindow": (wintypes.BOOL, [wintypes.HWND]),
+        "FlashWindowEx": (wintypes.BOOL, [ctypes.POINTER(FLASHWINFO)]),
         "AttachThreadInput": (wintypes.BOOL, [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]),
         "GetAsyncKeyState": (ctypes.c_short, [ctypes.c_int]),
         "keybd_event": (None, [wintypes.BYTE, wintypes.BYTE, wintypes.DWORD, ctypes.c_size_t]),
@@ -92,12 +99,16 @@ def bring_to_front(hwnd):
         return False
 
 
-def _watch(u, before, result, match, reuse):
+def _watch(u, before, result, match, reuse, timeout, flash):
     try:
         pid = getattr(result, "pid", None)
         started = time.monotonic()
-        deadline = started + 3
-        while time.monotonic() < deadline:
+        deadline = started + timeout
+        last_candidate = None
+        first_found = None
+        while time.monotonic() < (deadline if first_found is None else first_found + 1.5):
+            if match is None and hasattr(result, "poll") and result.poll() is not None:
+                return
             windows = _windows(u)
             owned, fresh, existing = [], [], []
             for hwnd, (wpid, cls, title) in windows.items():
@@ -109,18 +120,26 @@ def _watch(u, before, result, match, reuse):
                     elif reuse:
                         existing.append(hwnd)
             # PID를 재사용하는 셸·브라우저는 클래스와 제목으로 제한한다.
-            candidates = owned or fresh
+            dialogs = [hwnd for hwnd in owned if windows[hwnd][1] == "#32770"]
+            candidates = dialogs or owned or fresh
             if not candidates and len(existing) == 1 and time.monotonic() - started >= 0.5:
                 candidates = existing                     # 새 창이 나타날 시간을 먼저 준다
-            if candidates and bring_to_front(candidates[0]):
-                return
+            last_candidate = candidates[0] if candidates else None
+            if last_candidate:
+                if first_found is None:
+                    first_found = time.monotonic()
+                if bring_to_front(last_candidate):
+                    return
             time.sleep(0.1)
+        if flash and last_candidate:
+            info = FLASHWINFO(ctypes.sizeof(FLASHWINFO), last_candidate, 0x3 | 0xC, 0, 0)
+            u.FlashWindowEx(ctypes.byref(info))
     except Exception:
         pass
 
 
-def open_foreground(launch, *, match=None, reuse=False):
-    """launch()를 한 번 실행하고 원래 결과를 반환. 창 찾기는 최대 3초간 별도 스레드에서.
+def open_foreground(launch, *, match=None, reuse=False, timeout=3.0, flash=False):
+    """launch()를 한 번 실행하고 원래 결과를 반환. 창 찾기는 timeout초간 별도 스레드에서.
 
     match(class_name, title)는 셸/브라우저처럼 기존 프로세스에 위임하는 실행용.
     reuse=True이면 제목이 맞는 기존 창이 하나뿐일 때 그 창도 앞으로 가져온다.
@@ -135,7 +154,7 @@ def open_foreground(launch, *, match=None, reuse=False):
     result = launch()                                    # 실행 자체의 예외·반환값은 기존대로
     if u is not None:
         try:
-            threading.Thread(target=_watch, args=(u, before, result, match, reuse),
+            threading.Thread(target=_watch, args=(u, before, result, match, reuse, timeout, flash),
                              daemon=True, name="foreground").start()
         except Exception:
             pass

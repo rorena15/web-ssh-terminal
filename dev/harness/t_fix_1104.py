@@ -108,7 +108,10 @@ procs = {}
 class FakeMstsc:                                      # mstsc 대신: 창이 열려 있는 동안 wait()가 막힘
     def __init__(self, args):
         self.args, self.done = args, threading.Event()
-        procs[open(args[1], encoding="utf-16").read().split("full address:s:")[1].split()[0]] = self
+        address = next((arg[3:] for arg in args if arg.startswith("/v:")), None)
+        if address is None:
+            address = open(args[1], encoding="utf-16").read().split("full address:s:")[1].split()[0]
+        procs[address] = self
 
     def wait(self):
         self.done.wait()

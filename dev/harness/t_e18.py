@@ -164,7 +164,9 @@ def test_e1(port_a, port_b):
         def __init__(self, args):
             self.args = args
             self.done = threading.Event()
-            self.full_address = parse_rdp_full_address(args[1]) if len(args) > 1 else ""
+            self.full_address = next((arg[3:] for arg in args if arg.startswith("/v:")), None)
+            if self.full_address is None:
+                self.full_address = parse_rdp_full_address(args[1]) if len(args) > 1 else ""
             with cred_lock:
                 spawned.append(self)
 
