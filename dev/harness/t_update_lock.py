@@ -78,12 +78,12 @@ check("apply 앞 단계 실패 → ok:false", res.get("ok") is False, str(res)[:
 check("apply 실패 후 인수 잠금 남지 않음", not lock.exists())
 
 # launch_ready: 예외를 밖으로 내보내지 않음(FROZEN·키·staging 흉내, 버전 파일 없음)
-old = (common.FROZEN, update.UPDATE_PUBKEY, common.BASE)
+old = (common.FROZEN, update.UPDATE_PUBKEYS, common.BASE)
 upd = tmp / "upd"
 (upd / "staging" / "9.9.9").mkdir(parents=True)
 os.environ["WST_UPDATE_DIR"] = str(upd)
 try:
-    common.FROZEN, update.UPDATE_PUBKEY, common.BASE = True, "A" * 44, tmp
+    common.FROZEN, update.UPDATE_PUBKEYS, common.BASE = True, ("A" * 43 + "=",), tmp
     update.update_dir = lambda: upd
     sys._MEIPASS = str(tmp / "nope")
     try:
@@ -95,7 +95,7 @@ try:
         print("  ", type(e).__name__, e)
     check("launch_ready: 버전 파일 없음 등 예외를 밖으로 내보내지 않음", ok)
 finally:
-    common.FROZEN, update.UPDATE_PUBKEY, common.BASE = old
+    common.FROZEN, update.UPDATE_PUBKEYS, common.BASE = old
 
 print(f"\n{sum(R)}/{len(R)} 통과")
 sys.exit(0 if all(R) else 1)

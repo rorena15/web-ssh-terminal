@@ -58,10 +58,10 @@ def main():
     a = ap.parse_args()
 
     src = UPDATE_PY.read_text(encoding="utf-8")
-    cur = re.search(r'^UPDATE_PUBKEY = "([^"]*)"', src, re.M)
+    cur = re.search(r'^(UPDATE_PUBKEYS\s*=\s*\(\s*")([^"]*)"', src, re.M)
     if not cur:
-        raise SystemExit("wst/update.py에서 UPDATE_PUBKEY 줄을 찾지 못했습니다")
-    if cur.group(1) and not a.rotate:
+        raise SystemExit("wst/update.py에서 UPDATE_PUBKEYS의 주 키를 찾지 못했습니다")
+    if cur.group(2) and not a.rotate:
         raise SystemExit("이미 공개키가 있습니다. 교체하려면 --rotate (이전 버전 사용자는 수동 설치 필요)")
 
     tok = token()
@@ -120,7 +120,7 @@ def main():
         tmp.replace(UPDATE_PY)
 
     print("공개키:", pub_b64)
-    write(src.replace(cur.group(0), f'UPDATE_PUBKEY = "{pub_b64}"', 1))
+    write(src[:cur.start(2)] + pub_b64 + src[cur.end(2):])
     try:
         st, _ = api(tok, "PUT", f"/repos/{REPO}/environments/{ENV}/secrets/WST_UPDATE_KEY",
                     {"encrypted_value": base64.b64encode(sealed).decode(), "key_id": pk["key_id"]})

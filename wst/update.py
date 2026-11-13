@@ -18,12 +18,13 @@ import zlib
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from wst import common
 
 REPO = "rorena15/web-ssh-terminal"
-UPDATE_PUBKEY = "kRUiF2YHsSw4ZhlNoCzItWUzCrbh06WuyfFHmw0yX8U="  # 업데이트 서명 공개키(비밀키는 GitHub release 환경 Secret WST_UPDATE_KEY, 2026-11-13 생성)
+UPDATE_PUBKEYS = ("kRUiF2YHsSw4ZhlNoCzItWUzCrbh06WuyfFHmw0yX8U=", "2lSuzH6Z2Z+aW0kCP3mCgX1wMPKA2uN5raWb7W1prDA=")  # 주 키(비밀키: GitHub release 환경 Secret WST_UPDATE_KEY), 예비 키(비밀키: 오프라인 암호화 파일, dev/release/make_backup_key.py), 2026-11-13 생성
 MANAGED = ("W.S.T.exe", "_internal", "static", "LICENSE", "README.md", "README.ko.md", "SECURITY.md")
 _copy = shutil.copy2
 _guard = threading.Lock()
@@ -58,13 +59,38 @@ def check_path(p: str) -> None:
         raise UpdateError("관리 대상 밖 경로")
 
 
-def _key(value=None):
-    return value if value is not None else (os.environ.get("WST_UPDATE_PUBKEY", UPDATE_PUBKEY) if not common.FROZEN else UPDATE_PUBKEY)
+def _keys(value=None):
+    if value is None:
+        value = UPDATE_PUBKEYS
+        if not common.FROZEN and "WST_UPDATE_PUBKEY" in os.environ:
+            value = [part.strip() for part in os.environ["WST_UPDATE_PUBKEY"].split(",")]
+    if isinstance(value, str):
+        value = (value,)
+    if not isinstance(value, (list, tuple)):
+        raise UpdateError("업데이트 공개키 설정 오류")
+    keys = []
+    for encoded in value:
+        if encoded == "":
+            continue
+        try:
+            if not isinstance(encoded, str):
+                raise ValueError
+            keys.append(Ed25519PublicKey.from_public_bytes(base64.b64decode(encoded, validate=True)))
+        except (ValueError, TypeError) as e:
+            raise UpdateError("업데이트 공개키 설정 오류") from e
+    return keys
 
 
-def verify_manifest(manifest_bytes: bytes, sig: bytes, current_version: str, pubkey_b64: str | None = None) -> dict:
+def verify_manifest(manifest_bytes: bytes, sig: bytes, current_version: str, pubkey_b64: str | list[str] | tuple[str, ...] | None = None) -> dict:
     try:
-        Ed25519PublicKey.from_public_bytes(base64.b64decode(_key(pubkey_b64), validate=True)).verify(sig, manifest_bytes)
+        for key in _keys(pubkey_b64):
+            try:
+                key.verify(sig, manifest_bytes)
+                break
+            except InvalidSignature:
+                continue
+        else:
+            raise UpdateError("manifest 서명 검증 실패")
         m = json.loads(manifest_bytes)
         if type(m["format"]) is not int or m["format"] != 1 or parse_version(m["version"]) <= parse_version(current_version):
             raise UpdateError("형식 또는 버전 거부")
@@ -500,7 +526,7 @@ def check_once(base: Path, data_dir: Path, upd_dir: Path, current_version: str, 
             result = {"state": "disabled", "version": current_version}
             return result
         parse_version(current_version)
-        if not _key(pubkey_b64):
+        if not _keys(pubkey_b64):
             result = {"state": "disabled", "version": current_version, "error": "업데이트 공개키 미설정"}
             return result
         url = latest_url or (os.environ.get("WST_UPDATE_URL") if not common.FROZEN else None) or f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -605,8 +631,11 @@ def status(consume=True):
             s["last_result"], _last_result = _last_result, None
         return s
     s = dict(_status or common.load("update_state", {}))
-    if common.FROZEN and not _key():
-        s.update(state="disabled", error="업데이트 공개키 미설정")
+    try:
+        if not _keys():
+            s.update(state="disabled", error="업데이트 공개키 미설정")
+    except UpdateError as e:
+        s.update(state="error", error=str(e))
     try:
         s["current_version"] = current_version()
     except UpdateError:
@@ -661,7 +690,7 @@ def launch_ready():
             pass
 
     try:
-        if not common.FROZEN or not _key() or _guard.locked():
+        if not common.FROZEN or not _keys() or _guard.locked():
             return
         root = update_dir() / "staging"
         if not root.exists():
