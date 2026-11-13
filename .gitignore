@@ -21,3 +21,4 @@ docs/SPEC_*
 docs/REVIEW_*
 build/.venv/
 docs/wip/
+build/release/
