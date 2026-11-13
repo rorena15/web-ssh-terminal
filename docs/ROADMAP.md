@@ -66,6 +66,7 @@
 | GitHub 릴리즈 v1.1.1 + W.S.T-v1.1.1-win64.zip (build 6) | ✅ 11/13 (SHA-256 e8bd1ee2…5e5c7375, 공개 링크에서 내려받은 파일 해시 일치) |
 | v1.2 자동 업데이트(`docs/SPEC_UPDATE_2026-11-13.md`, 로컬 전용): 하루 한 번 확인 → 바뀐 파일만 Range로 받기 → Ed25519 서명 manifest·SHA-256 검증 → 종료 시 staging exe가 백업·교체·검증(실패 시 복구), 설정 켬/끔·지금 확인. CI(`.github/workflows/release.yml`): 태그 push → Windows 빌드·zip·manifest → `release` 환경 승인 → 서명·릴리즈 | ✅ 11/13 코드 통합·커밋(푸시는 키 설정 뒤). agy 시험 t_update 85/85(시험 결함 3곳 Claude 수정), t_update_lock 10/10(Claude), frozen exe 교체 실측 3회 성공. 리뷰 agy·Claude 1차 10건·2차 4건 수정 |
 | v1.2 남은 일: ~~키 생성·Secret 등록·공개키·release 환경·오프라인 예비 키(11/13 완료)~~, 토큰 재발급은 하지 않음(위험 수용, docs/wip), 첫 CI 실행(빌드 동일성·Python 3.14.10 러너), `docs/release-notes/v1.2.0.md`, 버전 1.2.0 | ⏳ |
+| GitHub 릴리즈 v1.2.0(CI 첫 릴리즈, build 7, 승인 후 서명) | ✅ 11/13 (zip SHA-256 3e327f65…de249e3). 공개 링크에서 받은 manifest 서명이 앱 공개키(주 키)로 검증됨, zip 오프셋으로 꺼낸 229개 파일 해시 일치, v1.1.1 위 직접 설치 → 실행·첫 업데이트 확인 state=latest. 첫 CI는 한글 출력 인코딩 오류로 실패 → PYTHONUTF8 |
 | v1.2 기록만(낮음): 8.3 짧은 경로·대소문자 비교, 적용 모드 경로 resolve TOCTOU(같은 사용자 권한 필요), 소스 실행 화면 버전 "확인 중…", 서명 job의 cryptography 해시 미고정 | ⏳ |
 | 다음: 여러 파일 끌기를 낱개로 받기(놓은 탐색기 폴더를 서버가 찾아 SFTP로 저장) | ⏳ 설계 전 |
 | v1.1.1 기록만(낮음): 같은 출처 Referer에 토큰이 실릴 수 있음(첫 로드 하위 리소스, `tree.js` 분리 창 경로가 토큰을 URL에 다시 넣음 — 받는 쪽은 같은 서버) · 파일 오류(없음·권한)에도 내려받기 채널을 닫고 1회 재시도 · 링크 요청 실패 시 4분간 "잠시 후 다시 끌어 보세요"만 표시 · 큰 파일 여러 개를 끌면 뒤 요청이 기다리고 파일 전체가 메모리에 올라감(스트리밍은 다음) | ⏳ |
