@@ -14,6 +14,7 @@ import json
 import secrets
 import shlex
 import stat
+import threading
 import time
 
 import paramiko
@@ -57,33 +58,67 @@ def _err(e):
 
 # ── 끌어서 내려받기: 브라우저가 파일 행을 탐색기로 끌면 /dl/<표>/<이름> 을 받아 간다 ──
 DL_TICKETS = {}                # 표 → (세션, 서버 경로 bytes, 이름, 만료 시각)
+DL_TICKETS_LOCK = threading.Lock()
 DL_LIMIT = 512 << 20           # 메모리에 올려 보내므로 크기 제한 (큰 파일은 ⬇ 버튼)
 
 
 def make_ticket(sess, srv_path, name):
     now = time.time()
-    for k in [k for k, v in DL_TICKETS.items() if v[3] < now]:
-        del DL_TICKETS[k]
     tok = secrets.token_urlsafe(18)
-    DL_TICKETS[tok] = (sess, srv_path, name, now + 300)
+    with DL_TICKETS_LOCK:
+        for k in [k for k, v in DL_TICKETS.items() if v[3] < now]:
+            DL_TICKETS.pop(k, None)
+        DL_TICKETS[tok] = (sess, srv_path, name, now + 300)
     return tok
+
+
+def close_dl(sess):
+    with DL_TICKETS_LOCK:
+        for tok, ticket in list(DL_TICKETS.items()):
+            if ticket[0] is sess:
+                DL_TICKETS.pop(tok, None)
+    with sess.setdefault("dl_lock", threading.Lock()):
+        sess["dl_closed"] = True
+        sftp = sess.pop("dl_sftp", None)
+        if sftp is not None:
+            try:
+                sftp.close()
+            except Exception:
+                pass
 
 
 def read_ticket(tok):
     """(이름, 내용) 또는 None. 블로킹 → 스레드에서 호출."""
-    t = DL_TICKETS.pop(tok, None)
+    with DL_TICKETS_LOCK:
+        t = DL_TICKETS.pop(tok, None)
     if not t or t[3] < time.time():
         return None
     sess, path, name, _ = t
-    sftp = sess["client"].open_sftp()
-    try:
-        if (sftp.stat(path).st_size or 0) > DL_LIMIT:
-            raise OpError(f"{DL_LIMIT >> 20}MB보다 큰 파일은 ⬇ 내려받기 버튼을 쓰세요")
-        with sftp.open(path, "rb") as f:
-            f.prefetch()
-            return name, f.read()
-    finally:
-        sftp.close()
+    with sess.setdefault("dl_lock", threading.Lock()):
+        if sess.get("dl_closed"):
+            return None
+        for attempt in range(2):
+            sftp = sess.get("dl_sftp")
+            try:
+                if sftp is None:
+                    sftp = sess["client"].open_sftp()
+                    sess["dl_sftp"] = sftp
+                if (sftp.stat(path).st_size or 0) > DL_LIMIT:
+                    raise OpError(f"{DL_LIMIT >> 20}MB보다 큰 파일은 ⬇ 내려받기 버튼을 쓰세요")
+                with sftp.open(path, "rb") as f:
+                    f.prefetch()
+                    return name, f.read()
+            except OpError:
+                raise
+            except Exception:
+                sess.pop("dl_sftp", None)
+                if sftp is not None:
+                    try:
+                        sftp.close()
+                    except Exception:
+                        pass
+                if attempt:
+                    raise
 
 
 async def sftp_handler(ws, sess):

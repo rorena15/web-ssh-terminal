@@ -326,7 +326,8 @@ async def terminal_handler(ws):
         pass
     finally:
         set_monitor(False)
-        common.SESSIONS.pop(sid, None)
+        from wst.sftp import close_dl
+        sess = common.SESSIONS.pop(sid, None)
         chan.close()
         client.close()
         if jump:
@@ -334,3 +335,5 @@ async def terminal_handler(ws):
         if log:
             log.close()
         print(f"[-] {peer[0]} → {target}")
+        if sess is not None:
+            await asyncio.to_thread(close_dl, sess)

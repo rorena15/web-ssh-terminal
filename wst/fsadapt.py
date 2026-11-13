@@ -283,4 +283,7 @@ async def localfs_handler(ws):
     except ConnectionClosed:
         pass
     finally:
-        common.SESSIONS.pop(sid, None)
+        from wst.sftp import close_dl
+        sess = common.SESSIONS.pop(sid, None)
+        if sess is not None:
+            await asyncio.to_thread(close_dl, sess)

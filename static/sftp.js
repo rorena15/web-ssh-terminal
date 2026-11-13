@@ -495,6 +495,9 @@ class SftpPanel {
     row.addEventListener('dragstart', (ev) => {
       if (!row.dlUrl) { ev.preventDefault(); toast('잠시 후 다시 끌어 보세요'); return; }
       ev.dataTransfer.setData('DownloadURL', `application/octet-stream:${e.name}:${row.dlUrl}`);
+      row.dlUrl = null;
+      row.dlAt = 0;
+      row.dlFor = null;
       ev.dataTransfer.effectAllowed = 'copy';
     });
   }

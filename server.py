@@ -144,7 +144,7 @@ def _resp(status, body=b"", ctype="text/plain; charset=utf-8", extra=()):
         ("Cache-Control", "no-store"),
         ("X-Content-Type-Options", "nosniff"),
         ("X-Frame-Options", "DENY"),
-        ("Referrer-Policy", "no-referrer"),
+        ("Referrer-Policy", "same-origin"),
         *extra,
     ])
     return Response(st.value, st.phrase, headers, body)
