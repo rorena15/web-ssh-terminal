@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from wst import common
 
 REPO = "rorena15/web-ssh-terminal"
-UPDATE_PUBKEY = ""  # 키 생성 후 공개키(base64 32바이트)를 채운다.
+UPDATE_PUBKEY = "kRUiF2YHsSw4ZhlNoCzItWUzCrbh06WuyfFHmw0yX8U="  # 업데이트 서명 공개키(비밀키는 GitHub release 환경 Secret WST_UPDATE_KEY, 2026-11-13 생성)
 MANAGED = ("W.S.T.exe", "_internal", "static", "LICENSE", "README.md", "README.ko.md", "SECURITY.md")
 _copy = shutil.copy2
 _guard = threading.Lock()
