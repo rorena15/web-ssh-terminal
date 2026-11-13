@@ -1,0 +1,20 @@
+name: 기능 제안 / Feature request
+description: 새 기능이나 개선 아이디어 / A new feature or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 어떤 일을 하려는데 불편한가요? / What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 원하는 동작 / What would you like
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: 지금 쓰는 방법이나 다른 도구 / Current workaround or other tools

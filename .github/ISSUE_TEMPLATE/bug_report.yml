@@ -1,0 +1,35 @@
+name: 버그 신고 / Bug report
+description: 동작이 잘못된 경우 / Something does not work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 버전 / Version
+      description: 도움말 → 버전 정보 / Help → About (예 / e.g. 1.1.0 build(4))
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 세션 종류 / Session type
+      options: [SSH, SFTP, RDP, Telnet, Rlogin, Serial, FTP/FTPS, VNC, Mosh, 로컬 터미널 / Local terminal, 도구 / Tools, 기타 / Other]
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법 / Steps to reproduce
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작과 실제 동작 / Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: 로그 / Log
+      description: data/server.log의 관련 부분. 접속 주소·계정·비밀번호는 지워 주세요. / Relevant part of data/server.log. Remove hosts, accounts and passwords.
+      render: text

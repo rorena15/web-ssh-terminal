@@ -87,6 +87,8 @@ W.S.T opens only on this PC. Remote mode (`--host 0.0.0.0`), which accepted conn
 
 ## Security
 
+See [SECURITY.md](SECURITY.md) for the security model, known issues and how to report a vulnerability.
+
 - The server listens only on loopback addresses (`127.0.0.1`, `::1`) and requires an access token generated at each start. Requests whose Host header is not `127.0.0.1`, `localhost` or `[::1]` with the actual port are rejected (DNS rebinding protection).
 - Traffic stays on this PC (loopback), so no TLS or local CA is used. Chrome treats `http://127.0.0.1` as a secure origin.
 - WebSocket Origin checks protect against cross-site WebSocket hijacking. SSH host keys use trust on first use (TOFU); a changed key is rejected until explicitly replaced.
@@ -128,6 +130,8 @@ Icons are stored in `build/webssh.ico` and `static/favicon.ico`, and generated b
 GPL-3.0-or-later.
 
 © 2026 rorena15.
+
+This repository's history was condensed for publication. The development and review history since October 2026 is kept in a separate repository.
 
 Open-source notices and full dependency license texts are available in the app under Help (도움말) → Version information (버전 정보) → Licenses (라이선스). The texts are stored in `static/licenses/`.
 
