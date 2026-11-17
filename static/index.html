@@ -10,7 +10,7 @@
 <script>try{var t=JSON.parse(localStorage.getItem('webssh.uiTheme'))||'light';if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
-<nav id="menubar" aria-label="메뉴"><button class="mb" data-menu="file">파일</button><button class="mb" data-menu="view">보기</button><button class="mb" data-menu="term">터미널</button><button class="mb" data-menu="tools">도구</button><button class="mb" data-menu="help">도움말</button></nav>
+<nav id="menubar" aria-label="메뉴"><button class="mb" data-menu="file">파일</button><button class="mb" data-menu="term">터미널</button><button class="mb" data-menu="view">보기</button><button class="mb" data-menu="net">네트워킹</button><button class="mb" data-menu="sec">보안</button><button class="mb" data-menu="help">도움말</button></nav>
 <header id="toolbar">
 <button id="sideToggle" class="tb small" title="사이드바 접기/펴기 (Ctrl+Shift+B)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
 <span class="tb-sep"></span>
@@ -448,9 +448,86 @@
 </dialog>
 
 <!-- 도움말: 단축키 안내 -->
+<dialog id="guideDlg" class="dlg tabbed" aria-labelledby="guideTitle">
+  <form method="dialog">
+    <h3 id="guideTitle">사용법</h3>
+    <div class="tdlg">
+      <nav class="tdlg-tabs" role="tablist" aria-orientation="vertical" aria-label="사용법 분류">
+        <button type="button" data-pane="start" data-features="">시작하기</button>
+        <button type="button" data-pane="terminal" data-features="">터미널</button>
+        <button type="button" data-pane="files" data-features="">파일</button>
+        <button type="button" data-pane="desktop" data-features="rdp vnc x11">원격 데스크톱</button>
+        <button type="button" data-pane="network" data-features="tunnels tools ssh">네트워킹</button>
+        <button type="button" data-pane="security" data-features="">보안</button>
+        <button type="button" data-pane="screen" data-features="">화면·설정</button>
+      </nav>
+      <div class="tdlg-body">
+        <section data-pane="start"><h4 class="first">시작하기</h4><ul>
+          <li><strong>새 세션</strong>: 툴바 [새 세션] 또는 <kbd>Ctrl+Alt+N</kbd>. SSH·SFTP·RDP·Telnet·Rlogin·Serial·FTP·VNC·Mosh 중 종류를 고르고 주소·계정을 입력합니다.</li>
+          <li><strong>빠른 접속</strong>: 툴바 입력칸에 <code>user@host</code> 또는 <code>user@host:port</code>를 넣고 Enter. 저장하지 않은 임시 탭으로 열리며, 탭 우클릭 → "세션으로 저장"으로 남길 수 있습니다.</li>
+          <li><strong>로컬 터미널</strong>: <kbd>Ctrl+Alt+T</kbd> 또는 파일 › 로컬 터미널에서 PowerShell·cmd·WSL을 고릅니다.</li>
+          <li><strong>세션 트리</strong>: 왼쪽 세션 탭에서 폴더로 정리합니다. 더블클릭으로 접속, 끌어서 이동, 우클릭으로 편집·복제·삭제·바탕화면 바로가기를 만듭니다. 위쪽 검색칸으로 이름·주소를 찾습니다.</li>
+          <li><strong>가져오기·내보내기</strong>: 파일 › 세션 가져오기에서 <code>.ini</code>·<code>.mxtsessions</code>의 SSH·RDP 세션과 폴더를 가져옵니다. 비밀번호는 가져오지 않습니다.</li>
+          <li><strong>명령 팔레트</strong>: <kbd>Ctrl+Shift+P</kbd> / <kbd>F1</kbd>. 세션 이름이나 동작 이름 일부를 입력해 바로 실행합니다. 메뉴 위치가 기억나지 않을 때 가장 빠릅니다.</li>
+          <li><strong>연결이 끊기면</strong>: 자동으로 다시 접속을 시도합니다. 끊긴 탭에서 <kbd>R</kbd>은 재접속, <kbd>Enter</kbd>는 탭 닫기입니다.</li>
+        </ul></section>
+        <section data-pane="terminal"><h4 class="first">터미널</h4><ul>
+          <li><strong>복사·붙여넣기</strong>: 드래그하면 복사, 우클릭하면 붙여넣기. <kbd>Ctrl+Shift+C</kbd> / <kbd>Ctrl+Shift+V</kbd>도 됩니다. 여러 줄이나 <code>rm -rf</code> 같은 위험 명령은 붙여넣기 전에 확인 창이 뜹니다.</li>
+          <li><strong>찾기</strong>: <kbd>Ctrl+Shift+F</kbd>. <kbd>F3</kbd> / <kbd>Shift+F3</kbd>로 다음·이전 결과로 이동합니다.</li>
+          <li><strong>출력 저장·인쇄</strong>: 터미널 › 출력. 화면에 남은 출력 전체를 파일로 저장하거나 인쇄합니다.</li>
+          <li><strong>탭</strong>: 끌어서 순서를 바꾸고, 더블클릭으로 이름을 바꿉니다. 터미널 › 탭 또는 탭 우클릭에서 복제·새 창으로 분리·재접속·닫기를 합니다.</li>
+          <li><strong>화면 분할</strong>: 보기 › 화면 분할 또는 <kbd>Ctrl+Alt+1</kbd>~<kbd>4</kbd>. 입력을 받는 칸은 머리줄이 파랗게 표시됩니다.</li>
+          <li><strong>MultiExec</strong>: <kbd>Ctrl+Shift+M</kbd>. 고른 여러 탭에 같은 입력을 동시에 보냅니다. 대상 칸에는 "동시입력"이 붙습니다. 여러 서버에 같은 점검 명령을 돌릴 때 씁니다.</li>
+          <li><strong>매크로</strong>: 터미널 › 입력 › 매크로에서 녹화를 시작하고 명령을 입력한 뒤 중지하면, 다음부터 한 번에 재생합니다.</li>
+          <li><strong>키워드 하이라이트</strong>: error·fail·denied는 빨강, warning·timeout은 노랑, ok·success는 초록, IP는 파랑으로 보입니다. 화면에만 칠하고 로그·복사 내용은 원본 그대로입니다. 규칙은 설정 › 하이라이트에서 바꿉니다.</li>
+          <li><strong>세션 로그</strong>: 설정에서 켜면 <code>logs/&lt;세션&gt;/</code> 아래에 기록됩니다. 파일 › 세션 로그 폴더로 엽니다.</li>
+        </ul></section>
+        <section data-pane="files"><h4 class="first">파일</h4><ul>
+          <li>SSH로 접속하면 왼쪽에 SFTP 탐색기가 열립니다. 터미널에서 <code>cd</code>하면 탐색기도 따라가고, <code>cd↵</code> 버튼은 반대로 터미널을 탐색기 폴더로 옮깁니다.</li>
+          <li><strong>올리기·내려받기</strong>: 파일·폴더를 탐색기에 끌어다 놓으면 올리고, 탐색기에서 PC로 끌어내면 받습니다.</li>
+          <li><strong>원격 편집</strong>: 파일을 열어 고치고 <kbd>Ctrl+S</kbd>로 저장합니다. 그 사이 서버에서 파일이 바뀌었으면 덮어쓰기 전에 알려 줍니다. EUC-KR·CRLF는 그대로 유지됩니다.</li>
+          <li><strong>비교</strong>: 두 파일을 골라 우클릭 → 비교. PC 파일이나 다른 탭의 같은 경로와도 비교할 수 있습니다.</li>
+          <li><strong>두 칸 탐색기</strong>: 이 PC와 현재 서버를 나란히 놓고 옮깁니다.</li>
+          <li>SFTP가 꺼진 서버는 자동으로 셸 명령 방식(SCP 모드)으로 바꿔 탐색합니다. 둘 다 안 되는 장비는 탐색기에 원인과 원문 오류가 표시됩니다.</li>
+          <li>이름 바꾸기 <kbd>F2</kbd>, 삭제 <kbd>Del</kbd>. 권한·소유자는 우클릭에서 바꿉니다.</li>
+        </ul></section>
+        <section data-pane="desktop"><h4 class="first">원격 데스크톱</h4><ul>
+          <li><strong>RDP</strong>: 세션을 더블클릭하면 Windows 원격 데스크톱(mstsc)이 열립니다. SSH 게이트웨이를 지정하면 그 서버를 거쳐 접속하고, RDP 창을 닫으면 중계 터널이 정리됩니다.</li>
+          <li><strong>VNC</strong>: 탭 안에서 바로 열립니다. 터미널 › VNC에서 Ctrl+Alt+Del 보내기와 클립보드 보내기를 씁니다.</li>
+          <li><strong>X11</strong>: SSH 세션 설정에서 X11 전달을 켜면 원격 GUI 프로그램이 이 PC의 X 서버(VcXsrv 등)에 뜹니다.</li>
+        </ul></section>
+        <section data-pane="network"><h4 class="first">네트워킹</h4><ul>
+          <li><strong>터널</strong>: 네트워킹 › 터널 관리(왼쪽 터널 탭). 로컬 포워딩(내 PC 포트 → 서버 쪽 주소), 원격 포워딩(서버 포트 → 내 PC 쪽 주소), 동적 SOCKS5를 만듭니다. 자동 시작을 켜면 앱이 뜰 때 함께 열리고, 끊기면 다시 연결합니다. 브라우저 창을 닫아도 W.S.T 서버가 켜져 있으면 터널은 유지됩니다.</li>
+          <li><strong>포트 스캐너</strong>: 대상 주소와 포트 목록을 넣어 열린 포트를 확인합니다. 허가받은 대상에만 사용하세요.</li>
+          <li><strong>이 PC의 열린 포트</strong>: 지금 이 PC에서 대기 중인 포트와 프로그램을 봅니다.</li>
+          <li><strong>파일 서버</strong>: TFTP는 네트워크 장비 설정 백업·펌웨어 올리기에, HTTP는 폴더를 잠깐 공유할 때 씁니다. 기본은 이 PC(127.0.0.1)에서만 열리며, 다른 장비가 받아야 하면 주소를 바꿉니다. 다 쓰면 중지하세요.</li>
+          <li><strong>원격 서버 상세</strong>: 연결된 Linux 서버의 상위 프로세스·디스크·열린 포트를 봅니다. 아래 모니터링 바를 눌러도 열립니다.</li>
+        </ul></section>
+        <section data-pane="security"><h4 class="first">보안</h4><ul>
+          <li><strong>SSH 키 생성</strong>: 새 키 쌍을 만들고 공개키를 복사하거나 현재 서버에 등록합니다. 키 암호를 걸어 두기를 권합니다.</li>
+          <li><strong>알려진 호스트</strong>: 처음 접속한 서버의 호스트 키를 기억해 두고, 키가 바뀌면 경고합니다. 서버를 실제로 교체한 경우에만 새 키로 바꾸세요. 여기서 기록을 확인·삭제합니다.</li>
+          <li><strong>비밀번호 저장소</strong>: 접속 창에서 "이 PC에 저장"을 고르면 Windows 계정으로 암호화해 저장합니다. 같은 PC의 같은 Windows 계정에서만 풀립니다. 마스터 비밀번호를 정하면 한 번 더 잠급니다. 저장하지 않으면 창을 닫을 때까지만 기억합니다.</li>
+          <li><strong>화면 잠금</strong>: 자리를 비울 때 <kbd>Ctrl+Alt+L</kbd>.</li>
+          <li>운영 서버는 세션 색 라벨을 빨강으로 두면 탭에 "운영"이 붙어 실수를 줄일 수 있습니다.</li>
+        </ul></section>
+        <section data-pane="screen"><h4 class="first">화면·설정</h4><ul>
+          <li><strong>테마</strong>: 보기 › 라이트/다크 전환. 설정 › 화면에서 Windows 설정 따라가기와 터미널 색을 고릅니다.</li>
+          <li><strong>글꼴</strong>: 보기 › 터미널 글꼴 / 화면 글꼴. <kbd>Ctrl</kbd>+휠로 터미널 글자 크기를 바로 바꿉니다.</li>
+          <li><strong>기능 표시</strong>: 설정 › 기능 표시에서 쓰지 않는 메뉴와 세션 종류를 숨깁니다.</li>
+          <li><strong>단축키</strong>: 설정에서 바꿀 수 있고, 도움말 › 단축키 안내에서 전체 목록을 봅니다.</li>
+          <li><strong>팝업 터미널</strong>: 설정에서 켜면 어디서든 <kbd>Ctrl+Alt+M</kbd>으로 창을 불러오고 숨깁니다.</li>
+          <li><strong>종료</strong>: 파일 › 서버 종료. 브라우저 창만 닫으면 서버와 터널은 계속 돌아갑니다.</li>
+        </ul></section>
+      </div>
+    </div>
+    <div class="row end dlg-foot"><button value="close" class="primary">닫기</button></div>
+  </form>
+</dialog>
+
 <dialog id="helpDlg" class="dlg" aria-labelledby="helpTitle">
   <form method="dialog">
     <h3 id="helpTitle">단축키 안내</h3>
+    <p class="hint">기능별 사용법은 도움말 › 사용법</p>
     <div class="help-grid">
       <section><h4 class="first">일반</h4><table class="keys">
         <tr><td><kbd>Ctrl+Shift+P</kbd> / <kbd>F1</kbd></td><td>명령 팔레트 (세션·동작 이름으로 검색)</td></tr>
@@ -496,7 +573,6 @@
     <table class="about-tbl">
       <tr><th>버전</th><td id="abVersion">확인 중…</td></tr>
       <tr><th>빌드</th><td id="abBuilt"></td></tr>
-      <tr><th>실행 환경</th><td id="abEnv"></td></tr>
     </table>
     <p class="hint">© 2026 rorena15 · GPL-3.0-or-later · github.com/rorena15/web-ssh-terminal</p>
     <div class="row end">

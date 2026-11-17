@@ -581,7 +581,10 @@ span.prod { display:inline-flex; align-items:center; height:1.25rem; padding:0 0
 #fontFamilySel { width:12.5rem; height:2.16666667rem; padding:0 0.25rem; text-overflow:ellipsis; }
 #fontCtl .tb { width:auto; min-width:2.5rem; padding:0 0.25rem; font-size:1rem; }
 #fontSizeVal { font-variant-numeric:tabular-nums; border-color:var(--line); }
-#ctxMenu { max-height:calc(100vh - 0.66666667rem); max-width:calc(100vw - 0.66666667rem); overflow:auto; }
+.ctx { max-height:calc(100vh - 0.66666667rem); max-width:calc(100vw - 0.66666667rem); overflow:auto; }
+.ctx button.menu-selected:not(:disabled) { background: var(--accent); color: #fff; }
+.ctx button.menu-selected .hint { color: #fff; }
+.ctx-sub { z-index: 101; }
 @media (max-width:1500px) {
   #toolbar > .tb:not(.small) { font-size:0; gap:0; padding:0 0.41666667rem; }
   #toolbar > .tb:not(.small) .badge { font-size:0.875rem; }
@@ -635,7 +638,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.42); }
 .tdlg-body select, .tdlg-body input:not([type=checkbox]):not([type=radio]) { max-width: 28rem; }
 .tdlg-body .grid2 { max-width: 40rem; }
 dialog#aboutDlg { width: 42rem; }
-#abEnv { line-height: 1.6; }
+#guideDlg .tdlg-tabs button.feat-off { display: block !important; opacity: 0.45; }
+#guideDlg code { display: inline; padding: 0.1rem 0.25rem; }
+#guideDlg .tdlg-body { min-width: 0; overflow-wrap: anywhere; }
+#guideDlg li { margin-bottom: 0.8rem; line-height: 1.7; }
 .lic { border: 0; border-top: 0.0833rem solid var(--line); border-bottom: 0.0833rem solid var(--line); border-radius: 0; }
 .lic-list li { padding: 0; border-left: 0; }
 .lic-list li button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 0.45rem 0.9rem; border: 0; border-left: 0.25rem solid transparent; border-radius: 0; background: none; text-align: left; color: var(--text); }

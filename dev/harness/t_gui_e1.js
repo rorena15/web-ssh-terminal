@@ -124,7 +124,7 @@ try {
   await check('§2-menubar-and-view-menu', async () => {
     const btns = [...document.querySelectorAll('#menubar button.mb[data-menu]')];
     const menus = btns.map((b) => b.getAttribute('data-menu'));
-    const expected = ['file', 'view', 'term', 'tools', 'help'];
+    const expected = ['file', 'term', 'view', 'net', 'sec', 'help'];
     const menusOk = expected.length === menus.length && expected.every((m, i) => menus[i] === m);
 
     const viewBtn = document.querySelector('#menubar button.mb[data-menu="view"]');
@@ -137,13 +137,18 @@ try {
 
     const ctx = document.querySelector('#ctxMenu');
     const ctxOpen = isVis(ctx);
-    const ctxText = ctx ? ctx.innerText || ctx.textContent : '';
+    const split = [...ctx.querySelectorAll('button')].find(b => b.textContent.includes('화면 분할'));
+    split?.click();
+    await W(50);
+    const sub = document.querySelector('.ctx-sub');
+    const ctxText = sub ? sub.innerText || sub.textContent : '';
 
     // 가정: 보기 메뉴의 분할 4항목은 '한 화면', '좌우', '상하', '4분할' 문구를 포함하고 현재 배치 항목에 '✓'가 들어간다.
     const has4Splits = ['한 화면', '좌우', '상하', '4분할'].every((k) => ctxText.includes(k));
     const hasCheck = ctxText.includes('✓');
 
-    // Esc로 메뉴 닫기
+    // Esc로 하위 메뉴, 최상위 메뉴를 차례로 닫기
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await W(80);
     if (isVis(ctx)) document.body.click();

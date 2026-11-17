@@ -2,30 +2,42 @@
 /* 도움말(단축키 안내) · 버전 정보 · 라이선스 창, 설정 창 세로 탭 전환 */
 
 // ── 설정 창 탭 ─────────────────────────────────────────
-function showSettingsPane(name) {
-  const dlg = $('#settingsDlg');
+function showDialogPane(dlg, name) {
   $$('.tdlg-tabs button', dlg).forEach((b) => {
     const on = b.dataset.pane === name;
     b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1;
   });
   $$('.tdlg-body section', dlg).forEach((s) => s.classList.toggle('on', s.dataset.pane === name));
+  $('.tdlg-body', dlg).scrollTop = 0;
+}
+function showSettingsPane(name) {
+  showDialogPane($('#settingsDlg'), name);
   if (name === 'info') loadVersion().then(fillVersion);
   if (name === 'behavior') refreshUpdate();
 }
-$$('#settingsDlg .tdlg-tabs button').forEach((b) => {
-  b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'pane-' + b.dataset.pane);
-  b.onclick = () => showSettingsPane(b.dataset.pane);
-});
-$$('#settingsDlg .tdlg-body section').forEach((s) => { s.id = 'pane-' + s.dataset.pane; s.setAttribute('role', 'tabpanel'); });
-$('#settingsDlg .tdlg-tabs').addEventListener('keydown', (e) => {   // 세로 탭: ↑↓ Home End
-  const list = $$('#settingsDlg .tdlg-tabs button').filter((b) => b.offsetParent);
-  const i = list.indexOf(document.activeElement);
-  const j = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: list.length - 1 }[e.key];
-  if (i < 0 || j === undefined) return;
-  e.preventDefault();
-  const b = list[(j + list.length) % list.length];
-  showSettingsPane(b.dataset.pane); b.focus();
-});
+function initDialogTabs(dlg, showPane) {
+  const prefix = dlg.id === 'settingsDlg' ? '' : dlg.id + '-';
+  $$('.tdlg-tabs button', dlg).forEach((b) => {
+    b.id = dlg.id + '-tab-' + b.dataset.pane;
+    b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', prefix + 'pane-' + b.dataset.pane);
+    b.onclick = () => showPane(b.dataset.pane);
+  });
+  $$('.tdlg-body section', dlg).forEach((s) => {
+    s.id = prefix + 'pane-' + s.dataset.pane; s.setAttribute('role', 'tabpanel');
+    s.setAttribute('aria-labelledby', dlg.id + '-tab-' + s.dataset.pane);
+  });
+  $('.tdlg-tabs', dlg).addEventListener('keydown', (e) => {   // 세로 탭: ↑↓ Home End
+    const list = $$('.tdlg-tabs button', dlg).filter((b) => b.offsetParent);
+    const i = list.indexOf(document.activeElement);
+    const j = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: list.length - 1 }[e.key];
+    if (i < 0 || j === undefined) return;
+    e.preventDefault();
+    const b = list[(j + list.length) % list.length];
+    showPane(b.dataset.pane); b.focus();
+  });
+}
+initDialogTabs($('#settingsDlg'), showSettingsPane);
+initDialogTabs($('#guideDlg'), name => showDialogPane($('#guideDlg'), name));
 // 창을 열 때마다 첫 탭으로
 new MutationObserver(() => { if ($('#settingsDlg').open) showSettingsPane('screen'); })
   .observe($('#settingsDlg'), { attributes: true, attributeFilter: ['open'] });
@@ -41,13 +53,21 @@ function fillVersion(v) {
   $$('.about-ver').forEach((e) => { e.textContent = ver + (v.built ? ` · ${v.built}` : v.frozen === false ? ' · 소스 실행' : ''); });
   $('#abVersion').textContent = ver;
   $('#abBuilt').textContent = v.built || (v.frozen === false ? '소스에서 실행 중 (빌드 아님)' : '-');
-  const libs = Object.entries(v.libs || {}).filter(([, x]) => x).map(([k, x]) => `${k} ${x}`).join(' · ');
-  $('#abEnv').textContent = [v.python && 'Python ' + v.python, libs].filter(Boolean).join(' · ') || '-';
 }
 
 // ── 창 열기 ───────────────────────────────────────────
 function openHelp() { $('#helpDlg').showModal(); }
+function openGuide() {
+  const dlg = $('#guideDlg');
+  $$('.tdlg-tabs button', dlg).forEach(b => {
+    const features = (b.dataset.features || '').split(' ').filter(Boolean);
+    b.classList.toggle('feat-off', features.length > 0 && features.every(f => !featureOn(f)));
+  });
+  showDialogPane(dlg, 'start');
+  dlg.showModal();
+}
 function openAbout() { loadVersion().then(fillVersion); $('#aboutDlg').showModal(); }
+paletteAction({ label: '사용법', run: () => openGuide() });
 
 function fillUpdate(s) {
   $('#updateVersion').textContent = '현재 버전: v' + (s.current_version || '-');

@@ -392,9 +392,7 @@ def _pick_folder():
 
 
 def _version_info():
-    """도움말 → 버전 정보: version_info.txt의 FileVersion, 빌드 시각(exe 수정 시각), 실행 환경."""
-    import platform
-    from importlib import metadata
+    """도움말 → 버전 정보: version_info.txt의 FileVersion과 빌드 번호."""
     try:
         version_file = Path(sys._MEIPASS) / "version_info.txt" if common.FROZEN else common.BASE / "build" / "version_info.txt"
         info = version_file.read_text(encoding="utf-8")
@@ -404,15 +402,8 @@ def _version_info():
         build = int(b.group(1)) if b else 0
     except OSError:
         version, build = "", 0
-    libs = {}
-    for name in ("paramiko", "websockets", "cryptography"):
-        try:
-            libs[name] = metadata.version(name)
-        except metadata.PackageNotFoundError:   # exe에는 패키지 메타데이터가 없을 수 있음
-            mod = sys.modules.get(name)
-            libs[name] = getattr(mod, "__version__", "")
     built = f"build({build})" if common.FROZEN and build else ""
-    return {"version": version, "built": built, "frozen": common.FROZEN, "python": platform.python_version(), "libs": libs}
+    return {"version": version, "built": built, "frozen": common.FROZEN}
 
 
 def _pick_file():

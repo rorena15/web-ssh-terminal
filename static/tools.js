@@ -23,18 +23,30 @@ function toolWindow(title, html, wide) {
 }
 const needLocal = () => { if (CAPS.local) return false; toast('도구는 서버가 127.0.0.1로 실행 중일 때만 쓸 수 있습니다', 3000); return true; };
 
-function toolsMenu(x, y) {
-  showMenu(x, y, [
-    { label: '포트 스캐너…', action: portScanner },
-    { label: '이 PC의 열린 포트…', action: listeningPorts },
+function networkMenuItems(includeConditional = true) {
+  const s = focused();
+  return [
+    { label: '터널 관리', feature: 'tunnels', action: () => setSide('tunnels') },
     '-',
-    { label: 'TFTP 서버…', hint: '장비 설정·펌웨어', action: () => serverTool('tftp') },
-    { label: 'HTTP 파일 서버…', hint: '폴더 공유', action: () => serverTool('http') },
+    { label: '포트 스캐너…', feature: 'tools', action: portScanner },
+    { label: '이 PC의 열린 포트…', feature: 'tools', action: listeningPorts },
+    { label: '파일 서버', feature: 'tools', children: [
+      { label: 'TFTP 서버…', hint: '장비 설정·펌웨어', feature: 'tools', action: () => serverTool('tftp') },
+      { label: 'HTTP 파일 서버…', hint: '폴더 공유', feature: 'tools', action: () => serverTool('http') },
+    ] },
     '-',
-    { label: 'SSH 키 생성…', action: keygenTool },
+    includeConditional && s?.kind === 'ssh' && s.state === 'on' ? { label: '원격 서버 상세 (프로세스·디스크·포트)…', action: () => remoteDetail(s) } : null,
+  ];
+}
+function securityMenuItems() {
+  return [
+    { label: 'SSH 키 생성…', feature: 'tools', action: keygenTool },
     { label: '알려진 호스트 관리…', action: knownHostsTool },
-    focused()?.kind === 'ssh' && focused().state === 'on' ? { label: '원격 서버 상세 (프로세스·디스크·포트)…', action: () => remoteDetail(focused()) } : null,
-  ]);
+    { label: '비밀번호 저장소 관리…', feature: 'passwordSave', action: () => vaultDialog() },
+  ];
+}
+function toolsMenu(x, y) {
+  showMenu(x, y, [...networkMenuItems(), '-', ...securityMenuItems()]);
 }
 $('#tbTools').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); toolsMenu(r.left, r.bottom + 2); };
 

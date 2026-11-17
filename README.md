@@ -196,7 +196,7 @@ The SFTP/FTP/SCP sidebar opens automatically when an SSH connection is establish
 - Start and stop tunnels, enable automatic startup with the app, and reconnect every five seconds after disconnection.
 - Tunnels keep running after the Chrome window closes, as long as the server is running.
 - The remote monitoring bar shows the current tab's Linux server CPU, memory, disk, network, load, and uptime, refreshed every three seconds. Click it for top processes, all disks, and open ports.
-- Tools (도구) provides a port scanner, host-PC open ports, a TFTP server, an HTTP file server, SSH key generation, and public-key installation on a server.
+- The Networking (네트워킹) and Security (보안) menus (also available from the toolbar Tools button) provide a port scanner, host-PC open ports, a TFTP server, an HTTP file server, SSH key generation, and public-key installation on a server.
 - Local terminals (`Ctrl+Alt+T`): PowerShell, cmd, and WSL.
 
 ### Display and settings
@@ -206,7 +206,7 @@ The SFTP/FTP/SCP sidebar opens automatically when an SSH connection is establish
 - Terminal font sizes are 9–32; interface sizes are 11–18 px. Interface sizing covers menus, trees, tabs, and dialogs. The two sizes are saved separately. `Ctrl`+mouse wheel adjusts terminal text.
 - Settings (⚙설정) has Interface (화면), Terminal (터미널), Behavior (동작), Security (보안), Feature visibility (기능 표시), Highlighting (하이라이트), and Information (정보) tabs.
 - Shut down server (서버 종료) is in Behavior (동작).
-- Help (도움말) includes shortcut guidance and Version information (버전 정보), showing the version, `build(N)`, and runtime environment, with access to Licenses (라이선스).
+- Help (도움말) includes a usage guide (사용법), shortcut guidance, and Version information (버전 정보), showing the version and `build(N)`, with access to Licenses (라이선스).
 - Hide unused menus and session types through Feature visibility (기능 표시), and configure keyboard shortcuts.
 - External windows such as the log folder, RDP, and X server are brought to the foreground by `wst/foreground.py`.
 

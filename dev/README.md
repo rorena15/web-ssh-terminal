@@ -28,6 +28,8 @@
 | `release/make_zip.py`, `make_manifest.py`, `sign_manifest.py`, `make_update_key.py` | 릴리즈 zip·manifest 생성, 서명(CI에서 `WST_UPDATE_KEY`), 업데이트 키 생성. CI `.github/workflows/release.yml`이 사용 |
 | `harness/t_rdp_launch.py` | 11/13 RDP 실행 방식 시험(Claude 검증): 기본 `mstsc /v:` 인수·옵션, 클립보드 끔·드라이브 연결만 .rdp 파일, 주소·문자열 주입 거부, 실제 mstsc에서 RDP 파일 보안 경고 없음(대상 127.0.0.1:1). `--no-real`이면 mstsc 미실행 |
 | `harness/t_sec2.py`, `t_sec2.js`, `t_sec2_front.py` | 11/5 보안 2차(T1 토큰·T2 프록시·T3 RDP·T4 바로가기·T5 option) 시험 — agy가 `docs/SPEC_SEC_2_2026-11-04.md`만 보고 작성(`t_sec2.py`), `t_sec2_front.py`는 Claude 검증(주소창 토큰 제거·새로고침·XSS, `python t_sec2_front.py dev/harness "http://127.0.0.1:18032/?t=sec2_token_test_12345"`, 서버는 `--token sec2_token_test_12345`) |
+| `harness/t_menu.js` | 11/17 메뉴 개편 명세 시험 — agy가 `docs/SPEC_MENU_2026-11-17.md`만 보고 작성(라벨 "네트워킹"은 Codex 갱신). 메뉴바 순서·하위 메뉴(마우스·키보드)·오른쪽 끝 위치·사용법 창·버전 정보·툴바 도구. lib.js 앞에 붙임 |
+| `harness/t_menu_feat.js` | 11/17 메뉴 개편(Claude 검증): 기능 끔 시 항목·부모 숨김, 메뉴가 열린 동안 키가 터미널로 안 감(대조군 포함), 닫으면 포커스 복귀. lib.js 앞에 붙임, 가짜 sshd 2222 필요 |
 | `harness/shot.py` | 1400×900 화면 캡처 |
 | `harness/readme_seed.py <데이터 폴더>` | README용 더미 세션·설정·SFTP 파일 생성. 실제 `data/`와 기존 JSON 덮어쓰기 거부 |
 | `harness/readme_shots.js` | README 5장 촬영: main(좌우 분할)·sftp·tunnels·palette·settings. lib.js 자동 포함 |

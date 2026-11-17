@@ -586,6 +586,7 @@ const FEATURES = {
 const featureOn = (k) => !(SETTINGS.hiddenFeatures || []).includes(k);
 function applyFeatures() {
   $$('[data-feature]').forEach((el) => el.classList.toggle('feat-off', !featureOn(el.dataset.feature)));
+  updateMenubarFeatures();
 }
 function applySettings(s) {
   SETTINGS = s;

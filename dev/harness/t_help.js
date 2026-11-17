@@ -14,7 +14,7 @@ O.helpDlg = $('#helpDlg').open && !toasted && $$('#helpDlg table.keys tr').lengt
 $('#helpDlg').close();
 O.aboutItem = await menu('help', '버전 정보');
 await until(() => /v\d/.test($('#abVersion').textContent), 4000, 'version');
-O.aboutDlg = $('#aboutDlg').open && /v\d+\.\d+/.test($('#abVersion').textContent) && /Python/.test($('#abEnv').textContent);
+O.aboutDlg = $('#aboutDlg').open && /v\d+\.\d+/.test($('#abVersion').textContent) && !$('#abEnv');
 $('#aboutDlg .open-license').click(); await W(400);
 await until(() => $$('#licenseDlg .lic-list li').length > 0, 4000, 'list');
 O.licenseFromAbout = $('#licenseDlg').open && $$('#licenseDlg .lic-list li').length >= 10;

@@ -283,33 +283,147 @@ function showNextHostKey() {
 }
 
 // ── 컨텍스트 메뉴 ────────────────────────────────────────
-function showMenu(x, y, items) {
-  const m = $('#ctxMenu');
-  delete m.dataset.menu;
-  m.innerHTML = '';
+let menuLevels = [], menuReturnFocus = null, menuPointerFocus = null, menuPointerTime = 0;
+function menuItemOff(it) {
+  if (it.feature && !featureOn(it.feature)) return true;
+  const children = it.children?.filter(x => x && x !== '-');
+  return !!children?.length && children.every(menuItemOff);
+}
+function menuItemDisabled(it) {
+  if (it.disabled) return true;
+  return !!it.children && it.children.filter(x => x && x !== '-' && !menuItemOff(x)).every(menuItemDisabled);
+}
+function closeMenuLevels(depth) {
+  while (menuLevels.length > depth) {
+    const level = menuLevels.pop();
+    level.parent?.setAttribute('aria-expanded', 'false');
+    if (depth || menuLevels.length) level.el.remove();
+  }
+}
+function placeMenu(m, x, y, parent) {
+  m.style.left = '0px'; m.style.top = '0px';
+  const r = m.getBoundingClientRect();
+  if (parent && x + r.width > innerWidth - 4) x = parent.getBoundingClientRect().left - r.width;
+  m.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px';
+  m.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+}
+function selectMenuItem(level, b, focus = true) {
+  level.selected?.classList.remove('menu-selected');
+  level.selected = b;
+  b?.classList.add('menu-selected');
+  if (focus && b) {
+    (b.disabled ? level.el : b).focus({ preventScroll: true });
+    b.scrollIntoView({ block: 'nearest' });
+  }
+}
+function buildMenu(m, items, parent = null) {
+  const level = { el: m, parent, selected: null };
+  const depth = menuLevels.length;
+  menuLevels.push(level);
+  m.replaceChildren(); m.setAttribute('role', 'menu'); m.tabIndex = -1;
+  let separator = false, hasVisibleItem = false;
   for (const it of items) {
     if (!it) continue;
-    if (it === '-') { m.appendChild(document.createElement('hr')); continue; }
-    const b = document.createElement('button');
-    if (it.feature) {
-      b.dataset.feature = it.feature;
-      b.classList.toggle('feat-off', !featureOn(it.feature));
+    if (it === '-') { separator = hasVisibleItem; continue; }
+    const off = menuItemOff(it);
+    if (!off) {
+      if (separator) m.appendChild(document.createElement('hr'));
+      separator = false; hasVisibleItem = true;
     }
+    const b = document.createElement('button');
+    b.type = 'button'; b.tabIndex = -1; b.setAttribute('role', 'menuitem');
+    if (it.feature) b.dataset.feature = it.feature;
+    b.classList.toggle('feat-off', off);
     b.textContent = it.label;
-    if (it.hint) { const h = document.createElement('span'); h.className = 'hint'; h.textContent = it.hint; b.appendChild(h); }
+    if (it.hint || it.children) {
+      const h = document.createElement('span'); h.className = 'hint';
+      h.textContent = it.children ? '▸' : it.hint; b.appendChild(h);
+    }
     if (it.danger) b.classList.add('danger');
-    b.disabled = !!it.disabled;
-    b.onclick = () => { hideMenu(); it.action(); };
+    b.disabled = menuItemDisabled(it);
+    if (it.children) { b.setAttribute('aria-haspopup', 'menu'); b.setAttribute('aria-expanded', 'false'); }
+    const open = (keyboard) => {
+      if (b.disabled) return;
+      if (menuLevels[depth + 1]?.parent !== b) {
+        closeMenuLevels(depth + 1);
+        const sub = document.createElement('div'); sub.className = 'ctx ctx-sub';
+        m.parentElement.appendChild(sub);
+        buildMenu(sub, it.children, b);
+        const r = b.getBoundingClientRect(); placeMenu(sub, r.right, r.top, b);
+        b.setAttribute('aria-expanded', 'true');
+      }
+      if (keyboard) {
+        const child = menuLevels[depth + 1];
+        selectMenuItem(child, menuButtons(child)[0]);
+      }
+    };
+    b.onmouseenter = () => {
+      if (menuLevels[depth + 1]?.parent !== b) closeMenuLevels(depth + 1);
+      selectMenuItem(level, b);
+      if (it.children) open(false);
+    };
+    b.onclick = () => {
+      if (it.children) open(true);
+      else { hideMenu(); it.action?.(); }
+    };
+    b.openSubmenu = it.children ? open : null;
     m.appendChild(b);
   }
-  m.hidden = false;
-  const r = m.getBoundingClientRect();
-  m.style.left = Math.min(x, innerWidth - r.width - 4) + 'px';
-  m.style.top = Math.min(y, innerHeight - r.height - 4) + 'px';
+  return level;
 }
-function hideMenu() { const m = $('#ctxMenu'); m.hidden = true; delete m.dataset.menu; }
-addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctxMenu, #menubar .mb')) hideMenu(); });
-addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMenu(); });
+function menuButtons(level) { return [...level.el.children].filter(b => b.tagName === 'BUTTON' && !b.disabled && !b.classList.contains('feat-off')); }
+function showMenu(x, y, items) {
+  const m = $('#ctxMenu');
+  if (m.hidden) menuReturnFocus = performance.now() - menuPointerTime < 500 ? menuPointerFocus : document.activeElement;
+  closeMenuLevels(0);
+  delete m.dataset.menu;
+  buildMenu(m, items);
+  m.hidden = false;
+  placeMenu(m, x, y);
+  m.focus({ preventScroll: true });
+}
+function hideMenu() {
+  const m = $('#ctxMenu');
+  if (m.hidden) return;
+  closeMenuLevels(0);
+  m.hidden = true; delete m.dataset.menu;
+  if (menuReturnFocus?.isConnected) menuReturnFocus.focus({ preventScroll: true });
+  menuReturnFocus = null;
+}
+addEventListener('pointerdown', (e) => {
+  if (!e.target.closest('.ctx, #menubar .mb')) hideMenu();
+  if ($('#ctxMenu').hidden) { menuPointerFocus = document.activeElement; menuPointerTime = performance.now(); }
+}, true);
+// 캡처 단계에서 막아 xterm과 전역 단축키로 메뉴 조작 키가 전달되지 않게 한다.
+addEventListener('keydown', (e) => {
+  if ($('#ctxMenu').hidden || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(e.key)) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.key === 'Escape' && menuLevels.length > 1) {
+    const child = menuLevels.at(-1);
+    closeMenuLevels(menuLevels.length - 1);
+    selectMenuItem(menuLevels.at(-1), child.parent);
+    return;
+  }
+  const level = menuLevels.find(l => l.el === document.activeElement || l.el.contains(document.activeElement)) || menuLevels.at(-1);
+  const depth = menuLevels.indexOf(level), list = menuButtons(level), b = level.selected;
+  const adjacent = (delta) => {
+    const bars = $$('#menubar .mb').filter(b => !b.classList.contains('feat-off')), i = bars.findIndex(x => x.dataset.menu === $('#ctxMenu').dataset.menu);
+    if (i >= 0) openMenubar(bars[(i + delta + bars.length) % bars.length]);
+  };
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    closeMenuLevels(depth + 1);
+    const i = list.indexOf(b), delta = e.key === 'ArrowDown' ? 1 : -1;
+    selectMenuItem(level, list[i < 0 ? (delta > 0 ? 0 : list.length - 1) : (i + delta + list.length) % list.length]);
+  } else if (e.key === 'ArrowRight') {
+    if (b && !b.disabled && b.openSubmenu) b.openSubmenu(true);
+    else if (!depth) adjacent(1);
+  } else if (e.key === 'Enter') {
+    if (b && !b.disabled) b.click();
+  } else if (depth) {
+    closeMenuLevels(depth); selectMenuItem(menuLevels[depth - 1], level.parent);
+  } else if (e.key === 'ArrowLeft') adjacent(-1);
+  else hideMenu();
+}, true);
 addEventListener('blur', hideMenu);
 
 // 폼에서 Enter를 누르면 브라우저는 '첫 번째' 제출 버튼을 누른다 → 취소가 앞에 있으면 Enter = 취소가 됨.

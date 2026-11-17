@@ -508,7 +508,7 @@ function tabMenu(s, x, y) {
     s.rfb ? { label: 'Ctrl+Alt+Del 보내기', action: () => vncSendCad(s) } : null,
     s.rfb ? { label: '내 클립보드를 원격으로', action: () => vncPaste(s) } : null,
     { label: '터미널에서 찾기', hint: 'Ctrl+Shift+F', action: () => openFind(s) },
-    { label: '출력 내용 저장…', hint: 'Ctrl+Shift+S', action: () => saveOutput(s) },
+    { label: '출력 저장…', hint: 'Ctrl+Shift+S', action: () => saveOutput(s) },
     { label: '출력 인쇄…', action: () => printOutput(s) },
     s.spec.quick ? { label: '세션으로 저장…', action: () => saveQuickAsSession(s) } : null,
     !s.spec.quick && findSession(s.spec.id) ? { label: '세션 편집…', action: () => editSession(findSession(s.spec.id)) } : null,
@@ -580,9 +580,12 @@ $$('#tbSplit [data-layout]').forEach(b => { b.onclick = () => setLayout(b.datase
 
 function localMenu(x, y) {
   if (!CAPS.shells.length) return toast('사용할 수 있는 로컬 셸이 없습니다');
-  showMenu(x, y, CAPS.shells.map((sh) => ({
+  showMenu(x, y, localMenuItems());
+}
+function localMenuItems() {
+  return CAPS.shells.map((sh) => ({
     label: sh.name, action: () => openSpec({ id: 'local-' + sh.id, type: 'local', shell: sh.id, name: sh.name, quick: true }),
-  })));
+  }));
 }
 $('#tbLocal').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); localMenu(r.left, r.bottom + 2); };
 $('#homeLocal').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); localMenu(r.left, r.bottom + 2); };
@@ -805,22 +808,40 @@ setInterval(renderAppStatus, 60000);
 $('#quickGo').onclick = () => $('#quick').dispatchEvent(new KeyboardEvent('keydown', {key:'Enter', bubbles:true}));
 $('#meBadge').onclick = () => $('#multiBar .me-line')?.focus();
 
-function menubarItems(name) {
+function menubarItems(name, includeConditional = true) {
   const click = id => () => $(id).click();
   const item = (label, action, hint, feature, disabled = false) => ({label, action, hint, feature, disabled});
   const tab = (label, action, hint) => ({label, hint, disabled: !focused(), action: () => { const s = focused(); if (s) action(s); }});
   const split = [['1','한 화면'],['2v','좌우 분할'],['2h','상하 분할'],['4','4분할']].map(([m,l],i) => item((layout === m ? '✓ ' : '') + l, () => setLayout(m), 'Ctrl+Alt+' + (i+1), 'split'));
+  const submenu = (label, children, feature, disabled = false) => ({label, children, feature, disabled});
+  const s = focused();
   return {
-    file: [item('새 세션', click('#tbSession'), 'Ctrl+Alt+N'), item('로컬 터미널', click('#tbLocal'), 'Ctrl+Alt+T', 'local', $('#tbLocal').disabled), '-', item('세션 가져오기', click('#treeImport')), item('세션 내보내기', click('#treeExport')), '-', item('설정', click('#tbSettings')), item('서버 종료', click('#shutdownBtn'))],
-    view: [item('사이드바 접기/펴기', () => toggleSidebar(), 'Ctrl+Shift+B'), ...split, '-', item('라이트/다크 전환', click('#themeBtn')), item('터미널 글자 크게', () => setFont(fontSize + 1)), item('터미널 글자 작게', () => setFont(fontSize - 1)), item('터미널 글자 기본', () => setFont(DEFAULT_FONT_SIZE)), '-',
-      ...fontFamilyItems().map(([value, label]) => item(((SETTINGS.fontFamily || 'D2Coding') === value ? '✓ ' : '') + '터미널 글꼴: ' + label, () => setFontFamily(value), '', undefined, !terminalFontReady)), '-',
-      item('화면 글자 크게', () => setUiFontSize(uiFontSizeSetting() + 1)), item('화면 글자 작게', () => setUiFontSize(uiFontSizeSetting() - 1)), item('화면 글자 기본', () => setUiFontSize(DEFAULT_UI_FONT_SIZE)), '-',
-      ...uiFontFamilyItems().map(([value, label]) => item((uiFontFamilySetting() === value ? '✓ ' : '') + '화면 글꼴: ' + label, () => setUiFontFamily(value))), '-',
+    file: [item('새 세션', click('#tbSession'), 'Ctrl+Alt+N'), submenu('로컬 터미널', localMenuItems(), 'local', $('#tbLocal').disabled), '-',
+      item('세션 가져오기', click('#treeImport')), item('세션 내보내기', click('#treeExport')), item('세션 로그 폴더', click('#tbLogs'), '', 'logs'), '-', item('설정', click('#tbSettings')), item('서버 종료', click('#shutdownBtn'))],
+    view: [item('사이드바 접기/펴기', () => toggleSidebar(), 'Ctrl+Shift+B'), submenu('화면 분할', split, 'split'), item('라이트/다크 전환', click('#themeBtn')), '-',
+      submenu('터미널 글꼴', [item('크게', () => setFont(fontSize + 1)), item('작게', () => setFont(fontSize - 1)), item('기본', () => setFont(DEFAULT_FONT_SIZE)), '-',
+        ...fontFamilyItems().map(([value, label]) => item(((SETTINGS.fontFamily || 'D2Coding') === value ? '✓ ' : '') + label, () => setFontFamily(value), '', undefined, !terminalFontReady))]),
+      submenu('화면 글꼴', [item('크게', () => setUiFontSize(uiFontSizeSetting() + 1)), item('작게', () => setUiFontSize(uiFontSizeSetting() - 1)), item('기본', () => setUiFontSize(DEFAULT_UI_FONT_SIZE)), '-',
+        ...uiFontFamilyItems().map(([value, label]) => item((uiFontFamilySetting() === value ? '✓ ' : '') + label, () => setUiFontFamily(value)))]), '-',
       item('전체화면', click('#fullBtn'), 'F11'), item('명령 팔레트', click('#tbPalette'), 'Ctrl+Shift+P / F1')],
-    term: [tab('터미널에서 찾기', openFind, 'Ctrl+Shift+F'), tab('출력 저장', saveOutput, 'Ctrl+Shift+S'), tab('탭 복제', s => openTab(s.spec), 'Ctrl+Shift+U'), tab('탭 닫기', closeTab, 'Ctrl+Alt+W'), '-', item('MultiExec 켜기/끄기', click('#tbMulti'), 'Ctrl+Shift+M', 'multiexec'), item('매크로', click('#tbMacro'), '', 'macro')],
-    tools: [item('터널', click('#tbTunnel'), '', 'tunnels'), item('도구', click('#tbTools'), '', 'tools'), item('세션 로그 폴더', click('#tbLogs'), '', 'logs')],
-    help: [item('단축키 안내', () => openHelp()), item('버전 정보', () => openAbout()), item('라이선스', () => openLicense())]
+    term: [tab('터미널에서 찾기', openFind, 'Ctrl+Shift+F'), submenu('출력', [tab('출력 저장…', saveOutput, 'Ctrl+Shift+S'), tab('출력 인쇄…', printOutput)]),
+      submenu('탭', [tab('탭 복제', s => openTab(s.spec), 'Ctrl+Shift+U'), tab('탭 이름 바꾸기…', renameTab), tab('새 창으로 분리', detachTab, 'Ctrl+Shift+D'), tab('재접속', reconnectNow), '-',
+        tab('닫기', closeTab, 'Ctrl+Alt+W'), tab('다른 탭 모두 닫기', s => tabs.filter(t => t !== s).forEach(t => closeTab(t, true)))]),
+      submenu('입력', [item('MultiExec 켜기/끄기', click('#tbMulti'), 'Ctrl+Shift+M', 'multiexec'), item('매크로', click('#tbMacro'), '', 'macro')]),
+      includeConditional && s?.rfb ? submenu('VNC', [tab('Ctrl+Alt+Del 보내기', vncSendCad), tab('내 클립보드를 원격으로', vncPaste)]) : null, '-',
+      includeConditional && s?.spec.quick ? tab('세션으로 저장…', saveQuickAsSession) : null,
+      includeConditional && s && !s.spec.quick && findSession(s.spec.id) ? tab('세션 편집…', s => editSession(findSession(s.spec.id))) : null],
+    net: networkMenuItems(includeConditional),
+    sec: securityMenuItems(),
+    help: [item('사용법…', () => openGuide()), item('단축키 안내', () => openHelp()), '-', item('버전 정보', () => openAbout())]
   }[name];
+}
+function updateMenubarFeatures() {
+  // 탭에 따라 생기는 항목은 제외하고 기능 설정만으로 메뉴바 표시를 결정한다.
+  $$('#menubar .mb').forEach(b => {
+    const items = menubarItems(b.dataset.menu, false).filter(it => it && it !== '-');
+    b.classList.toggle('feat-off', !items.some(it => !menuItemOff(it)));
+  });
 }
 function openMenubar(b) {
   const r = b.getBoundingClientRect();
