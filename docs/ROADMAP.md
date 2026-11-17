@@ -80,6 +80,7 @@
 | 명세 기반 시험 t_menu.js | ✅ 11/17 agy 작성, 수정 전 9/10 실패 → 수정 후 9 통과·1 건너뜀. Claude t_menu_feat.js(기능 끔·키 누수·포커스) 통과, 회귀 7개 통과 |
 | 리뷰 | ✅ 11/17 agy 4건 + Claude 5건 → 사용자 승인 범위(R0 이름 "네트워킹", R1~R6) Codex 수정, agy 재리뷰 6건 모두 해결·새 결함 없음, 시험 9개 재통과 |
 | 툴바 [도구] | ✅ 11/17 유지(네트워킹+보안 같은 정의 공유) |
-| 통합(원본 반영) | ✅ 11/17 원본에서 t_menu·t_menu_feat·t_help·t_smoke 통과. 미커밋 |
+| 통합(원본 반영) | ✅ 11/17 원본에서 t_menu·t_menu_feat·t_help·t_smoke 통과, 커밋 def741f |
+| GitHub 릴리즈 v1.3.0(CI, build 7, 승인 후 서명) | ✅ 11/17 (zip SHA-256 652c5fc7…0a24fe9b). 공개 링크에서 받은 manifest 서명이 앱 공개키로 검증됨(1.2.0 대비 버전 상향 통과), zip 오프셋으로 꺼낸 229개 파일 해시 일치, zip 안 version_info 1.3.0·build 7, 메뉴 변경 포함 확인. releases/latest = v1.3.0 |
 | 기록만(낮음) | ⏳ 비밀번호 저장소 목록이 설정 버튼 위치에 뜸, 하위 메뉴 hover 열림 지연 없음, t_font의 uiScaleChanged 검사는 예전 라벨을 찾아 항상 false(합격 판정엔 미포함, 기존부터) |
 | 다음 안건: Chrome 의존성 제거 검토 | ⏳ 메뉴 개편 후 |
