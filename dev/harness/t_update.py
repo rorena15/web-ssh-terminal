@@ -1001,7 +1001,8 @@ def run_tests():
 
         # autoUpdate 다시 켬
         for cfg_name in ("config.json", "settings.json"):
-            (data_cfg / cfg_name).write_text('{"autoUpdate": true, "auto_update": true}', encoding="utf-8")
+            # v1.4(SPEC_UPDATE_CONSENT_2026-11-19): 이 시험은 v1.2 자동 설치 흐름(ready)을 보므로 updateMode=auto
+            (data_cfg / cfg_name).write_text('{"autoUpdate": true, "auto_update": true, "updateMode": "auto"}', encoding="utf-8")
 
         # [명세 3절, 6.5절] check_once: 현재 버전이 이미 최신일 때 "latest" 반환
         srv_chk.clear_log()

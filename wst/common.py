@@ -55,7 +55,7 @@ SESSIONS = {}
 _lock = threading.Lock()
 
 DEFAULT_SETTINGS = {
-    "autoUpdate": True,         # 종료 시 준비된 업데이트 적용
+    "updateMode": "notify",     # 알림 후 사용자 승낙을 받아 설치
     "logDir": "",               # 비우면 BASE/logs
     "logDefault": True,         # 새 SSH 세션의 로그 저장 기본값
     "monitor": True,            # 원격 모니터링 바
@@ -95,7 +95,11 @@ def save(name, obj):
 
 def settings():
     s = dict(DEFAULT_SETTINGS)
-    s.update(load("settings", {}))
+    saved = load("settings", {})
+    s.update(saved)
+    s["updateMode"] = saved.get("updateMode", "off" if saved.get("autoUpdate") is False else "notify")
+    if s["updateMode"] not in ("notify", "auto", "off"):
+        s["updateMode"] = "notify"
     return s
 
 

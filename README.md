@@ -70,7 +70,7 @@ To stop the server, open Settings (⚙설정) → Behavior (동작) → Shut dow
 
 If W.S.T is already running, launching it again opens another window without starting another server. Errors appear in a message window; detailed logs are written to `data/server.log`.
 
-From v1.2, W.S.T updates itself. While running, it checks for a new version once a day, downloads only the files that changed, and replaces them when W.S.T exits. It never replaces files while a connection or tunnel is open, and it does not touch `data/` or `logs/`. Turn it off or check now in Settings (⚙설정) → Automatic updates. Users of v1.1.x or earlier need to install v1.2 once by hand. Automatic updates are skipped in folders you cannot write to, such as Program Files.
+W.S.T checks for a new version once a day while running. From v1.4, it asks before installing: a bar under the menu offers Restart and install now, Install on exit, Later (ask again tomorrow), or Skip this version. Nothing is downloaded until you choose. It downloads only the files that changed and replaces them when W.S.T exits (or right away when you choose restart, after which W.S.T opens again). It never replaces files while a connection or tunnel is open, and it does not touch `data/` or `logs/`. In Settings (⚙설정) → Updates you can choose Notify before installing (default), Install automatically without asking (the v1.2–v1.3 behavior), or Don't check; Check now works in every mode. Users of v1.1.x or earlier need to install a newer version once by hand. Automatic updates are skipped in folders you cannot write to, such as Program Files.
 
 ### Run from source
 

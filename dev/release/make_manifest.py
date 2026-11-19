@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from wst.update import REPO, check_path, parse_version
 
 
-def make_manifest(archive: Path, version_file: Path, tag: str):
+def make_manifest(archive: Path, version_file: Path, tag: str, *, notes_file=None):
     text = version_file.read_text(encoding="utf-8")
     version = re.search(r"'FileVersion',\s*'([^']+)'", text).group(1)
     build = int(re.search(r"filevers=\(\d+, \d+, \d+, (\d+)\)", text).group(1))
@@ -44,10 +44,32 @@ def make_manifest(archive: Path, version_file: Path, tag: str):
         raise ValueError("exe 누락 또는 크기 초과")
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
-    return {"format": 1, "version": version, "build": build,
+    manifest = {"format": 1, "version": version, "build": build,
             "published": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
             "zip": {"name": archive.name, "size": archive.stat().st_size, "sha256": digest},
             "files": files, "notes_url": f"https://github.com/{REPO}/releases/tag/{tag}"}
+    notes_path = Path(notes_file) if notes_file is not None else Path(f"docs/release-notes/v{version}.md")
+    if notes_file is not None and not notes_path.is_file():
+        raise FileNotFoundError(notes_path)
+    if notes_path.is_file():
+        parts = re.split(r"^---$", notes_path.read_text(encoding="utf-8"), maxsplit=1, flags=re.M)
+        notes = {}
+        for lang, part in zip(("ko", "en"), parts):
+            lines = part.splitlines()
+            while lines and not lines[0].strip():
+                lines.pop(0)
+            if lines and lines[0].startswith("## W.S.T v"):
+                lines.pop(0)
+            while lines and not lines[0].strip():
+                lines.pop(0)
+            while lines and not lines[-1].strip():
+                lines.pop()
+            value = "\n".join(lines)
+            if len(value) > 8000:
+                raise ValueError(f"{lang} 변경 내용 8000자 초과")
+            notes[lang] = value
+        manifest["notes"] = notes
+    return manifest
 
 
 if __name__ == "__main__":
@@ -55,8 +77,9 @@ if __name__ == "__main__":
     ap.add_argument("--zip", type=Path, required=True)
     ap.add_argument("--version-file", type=Path, default=Path("build/version_info.txt"))
     ap.add_argument("--tag", required=True)
+    ap.add_argument("--notes", type=Path)
     ap.add_argument("--output", type=Path, default=Path("manifest.json"))
     args = ap.parse_args()
-    manifest = make_manifest(args.zip, args.version_file, args.tag)
+    manifest = make_manifest(args.zip, args.version_file, args.tag, notes_file=args.notes)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

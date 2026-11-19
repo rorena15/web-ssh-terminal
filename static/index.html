@@ -11,6 +11,16 @@
 </head>
 <body>
 <nav id="menubar" aria-label="메뉴"><button class="mb" data-menu="file">파일</button><button class="mb" data-menu="term">터미널</button><button class="mb" data-menu="view">보기</button><button class="mb" data-menu="net">네트워킹</button><button class="mb" data-menu="sec">보안</button><button class="mb" data-menu="help">도움말</button></nav>
+<div id="updateBanner" role="status" hidden></div>
+<dialog id="updateNotesDlg" class="dlg" aria-labelledby="updateNotesTitle"><form method="dialog">
+  <h3 id="updateNotesTitle"></h3><div id="updateNotesBody"></div>
+  <div id="updateNotesActions" class="row"></div>
+  <div class="row"><button value="close">닫기</button></div>
+</form></dialog>
+<dialog id="updateRestartDlg" class="dlg narrow"><form method="dialog">
+  <h3>업데이트 설치</h3><p id="updateRestartText"></p>
+  <div class="row"><button value="yes" class="primary" autofocus>확인</button><button value="cancel">취소</button></div>
+</form></dialog>
 <header id="toolbar">
 <button id="sideToggle" class="tb small" title="사이드바 접기/펴기 (Ctrl+Shift+B)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
 <span class="tb-sep"></span>
@@ -409,11 +419,11 @@
             <label><input type="checkbox" name="followFolder"> SFTP가 터미널 폴더 따라가기</label>
             <label title="어디서든 Ctrl+Alt+M → 창 불러오기 / 다시 누르면 숨기기"><input type="checkbox" name="globalHotkey"> 전역 단축키 Ctrl+Alt+M</label>
           </div>
-          <h4>자동 업데이트</h4>
-          <div class="checks"><label><input type="checkbox" name="autoUpdate"> 자동 업데이트 켜기</label></div>
+          <h4>업데이트</h4>
+          <label>설치 방식<select name="updateMode"><option value="notify">알림 후 설치 (권장)</option><option value="auto">묻지 않고 자동 설치</option><option value="off">확인 안 함</option></select></label>
           <p class="hint" id="updateVersion">현재 버전: 확인 중…</p>
           <p class="hint" id="updateLast">마지막 확인: -</p>
-          <div class="row"><span class="grow hint" id="updateStatus" role="status"></span><button type="button" id="updateCheck">지금 확인</button></div>
+          <div class="row"><span class="grow hint" id="updateStatus" role="status"></span><button type="button" id="updateNotes" hidden>변경 사항</button><button type="button" id="updateCheck">지금 확인</button></div>
           <h4>중계 서버</h4>
           <div class="row"><span class="grow hint">끄면 열린 터널·접속이 모두 끊깁니다.</span><button type="button" id="shutdownBtn" class="danger-btn">서버 종료</button></div>
         </section>

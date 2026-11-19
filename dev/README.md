@@ -23,6 +23,9 @@
 | `harness/t_update.py [저장소 루트]` | 11/13 자동 업데이트 명세 시험 — agy가 `docs/SPEC_UPDATE_2026-11-13.md`만 보고 작성(https 처리기 우선순위·버전 파일 위치·plan 기대값은 Claude 수정). 서명·변조·다운그레이드·경로 규칙·Range/전체 받기·적용/복구·잠금·설정. 시험 키·로컬 HTTP 서버 사용, 인터넷 접속 없음 |
 | `harness/t_update_lock.py [저장소 루트]` | 11/13 업데이트 잠금(Claude 검증): 죽은·살아 있는 pid, 깨진 형식, 시작 정리, 인수 잠금 누수, launch_ready 예외 안전 |
 | `harness/t_update_keys.py [저장소 루트]` | 11/13 서명 키 여러 개·예비 키(Claude 검증): 주·예비 키 서명 통과, 모르는 키 거부, 예비 키 파일 암호화·덮어쓰기 거부·비밀 미노출, `sign_manifest --key-file` |
+| `harness/t_update_consent.py [저장소 루트]` | 11/19 업데이트 알림·승낙 명세 시험 — agy가 명세만 보고 작성(zip 요청 기록 초기화·saveSettings 정적 확인·FROZEN 버전 읽기·잠금 정리는 Claude 수정). updateMode 옮기기, 승낙 전 zip 요청 0번, download/restart/later/skip 거부 규칙, launch_ready 승낙 버전만·`--relaunch`, relaunch 규칙 |
+| `harness/t_update_notes.py [저장소 루트]` | 11/19 업데이트 변경 내용(notes) 명세 시험 — agy 작성. make_manifest `--notes` 한/영 분리·8000자·명시 파일 없음 실패, verify_manifest notes 검증(잘못되면 notes만 버림·제어 문자 제거·서명), status의 notes |
+| `harness/t_update_banner.js`, `t_update_notes_ui.js` | 11/19 업데이트 알림 띠·재시작 확인 창·설정 선택 상자, 변경 내용 창 렌더링(목록·굵게·링크 미생성·문자열 주입 차단)(Claude 검증). 소스 실행 서버에서 가짜 status로 화면만 시험, lib.js 앞에 붙임 |
 | `release/make_backup_key.py <파일>` | 오프라인 예비 서명 키 생성(비밀번호 scrypt+AES-GCM 암호화). 주 키(GitHub Secret)를 잃으면 `python dev/release/sign_manifest.py --manifest … --output … --zip … --tag vX.Y.Z --key-file <파일>`로 로컬 서명 후 릴리즈에 올림. 그 릴리즈에 새 주 공개키를 넣으면 사용자는 자동 업데이트로 넘어감 |
 | `release/setup_update_key.py [--rotate]` | release 환경(승인자·tag v*)·Secret WST_UPDATE_KEY를 API로 설정하고 주 공개키를 넣음. 비밀키는 출력·저장하지 않음 |
 | `release/make_zip.py`, `make_manifest.py`, `sign_manifest.py`, `make_update_key.py` | 릴리즈 zip·manifest 생성, 서명(CI에서 `WST_UPDATE_KEY`), 업데이트 키 생성. CI `.github/workflows/release.yml`이 사용 |

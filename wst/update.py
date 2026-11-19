@@ -31,6 +31,10 @@ _guard = threading.Lock()
 _status = {}
 _last_result = None
 _stopping = False
+_restart = False
+_manual_prompt = False
+on_change = None
+_prefs_guard = threading.RLock()
 
 
 class UpdateError(Exception):
@@ -114,11 +118,23 @@ def verify_manifest(manifest_bytes: bytes, sig: bytes, current_version: str, pub
             total += f["size"]
         if "w.s.t.exe" not in seen or total > 1 << 30:
             raise UpdateError("exe 누락 또는 크기 초과")
+        if "notes" in m:
+            notes = m["notes"]
+            if (not isinstance(notes, dict) or any(k not in ("ko", "en") for k in notes)
+                    or any(not isinstance(v, str) or len(v) > 8000 for v in notes.values())):
+                m.pop("notes")
+            else:
+                m["notes"] = {k: re.sub(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]", "", v) for k, v in notes.items()}
         return m
     except UpdateError:
         raise
     except Exception as e:
         raise UpdateError("manifest 검증 실패") from e
+
+
+def _notes(m):
+    notes = m.get("notes", {})
+    return notes.get("ko") or notes.get("en") or ""
 
 
 def _digest(s):
@@ -429,6 +445,7 @@ def _lock_expired(lock):
 def apply_update(target: Path, staging: Path, data_dir: Path, wait_pid: int | None = None, timeout: float = 60, pubkey_b64=None, lock_token=None) -> dict:
     lock, backup = target / ".wst-updating", target / ".wst-backup"
     owned, moved, installed, m = False, [], set(), None
+    waited = False
     try:
         _no_links(target.absolute())
         _no_links(lock.absolute())
@@ -438,8 +455,10 @@ def apply_update(target: Path, staging: Path, data_dir: Path, wait_pid: int | No
             owned = True
             _write_json(lock, {"token": lock_token, "pid": os.getpid()})
             _wait_pid(wait_pid, timeout)
+            waited = True
         else:
             _wait_pid(wait_pid, timeout)
+            waited = True
             if _lock_expired(lock):
                 lock.unlink()
             with lock.open("x", encoding="utf-8") as f:
@@ -466,7 +485,7 @@ def apply_update(target: Path, staging: Path, data_dir: Path, wait_pid: int | No
             dest.parent.mkdir(parents=True, exist_ok=True)
             _copy(_safe(staging, f["path"]), dest)
         _verify_tree(target, m, exact=True)
-        result = {"ok": True, "from": previous, "to": m["version"], "notes_url": m.get("notes_url", ""), "at": time.time()}
+        result = {"ok": True, "waited": waited, "from": previous, "to": m["version"], "notes_url": m.get("notes_url", ""), "at": time.time()}
         _write_json(data_dir / "update_result.json", result)
         lock.unlink()
         owned = False
@@ -487,7 +506,7 @@ def apply_update(target: Path, staging: Path, data_dir: Path, wait_pid: int | No
                 backup.rmdir()
         except OSError as cleanup:
             errors.append("빈 백업 정리 실패: " + str(cleanup))
-        result = {"ok": False, "error": "; ".join(errors)}
+        result = {"ok": False, "waited": waited, "error": "; ".join(errors)}
         if m is not None:
             try:
                 counts = _read_json(failures_path, {})
@@ -520,28 +539,83 @@ def _log(data_dir, error):
         f.write("update: " + str(error).replace("\n", " ").replace("\r", " ") + "\n")
 
 
-def check_once(base: Path, data_dir: Path, upd_dir: Path, current_version: str, latest_url=None, pubkey_b64=None, opener=None) -> dict:
+def _mode(data_dir=None):
+    saved = _read_json(Path(data_dir or common.DATA) / "settings.json", {})
+    if not isinstance(saved, dict):
+        saved = {}
+    mode = saved.get("updateMode", "off" if saved.get("autoUpdate") is False else "notify")
+    return mode if mode in ("notify", "auto", "off") else "notify"
+
+
+def _prefs(data_dir=None):
+    with _prefs_guard:
+        saved = _read_json(Path(data_dir or common.DATA) / "update_prefs.json", {})
+        if not isinstance(saved, dict):
+            return {}
+        try:
+            if "skip" in saved:
+                parse_version(saved["skip"])
+            if "consent" in saved:
+                c = saved["consent"]
+                parse_version(c["version"])
+                if c["when"] not in ("now", "exit"):
+                    return {}
+            if "remind_after" in saved and (type(saved["remind_after"]) not in (int, float)
+                                           or not 0 <= saved["remind_after"] < float("inf")):
+                return {}
+        except (UpdateError, KeyError, TypeError):
+            return {}
+        return saved
+
+
+def _changed():
+    if on_change:
+        try:
+            on_change()
+        except Exception as e:
+            try:
+                _log(common.DATA, e)
+            except Exception:
+                pass
+
+
+def _release(current, latest_url=None, pubkey_b64=None, opener=None):
+    url = latest_url or (os.environ.get("WST_UPDATE_URL") if not common.FROZEN else None) or f"https://api.github.com/repos/{REPO}/releases/latest"
+    _, raw = _request(url, 1 << 20, current, opener)
+    release = json.loads(raw)
+    assets = {a["name"]: a["browser_download_url"] for a in release["assets"]}
+    _, raw = _request(assets["manifest.json"], 1 << 20, current, opener)
+    _, sig = _request(assets["manifest.json.sig"], 1 << 20, current, opener)
+    m = verify_manifest(raw, sig, "0.0.0", pubkey_b64)
+    return m, raw, sig, assets
+
+
+def check_once(base: Path, data_dir: Path, upd_dir: Path, current_version: str, latest_url=None, pubkey_b64=None, opener=None, *, manual=False) -> dict:
+    global _status, _manual_prompt
     try:
-        if not common.FROZEN or not _read_json(data_dir / "settings.json", {}).get("autoUpdate", True):
+        mode = _mode(data_dir)
+        if not common.FROZEN or (mode == "off" and not manual):
             result = {"state": "disabled", "version": current_version}
             return result
         parse_version(current_version)
         if not _keys(pubkey_b64):
             result = {"state": "disabled", "version": current_version, "error": "업데이트 공개키 미설정"}
             return result
-        url = latest_url or (os.environ.get("WST_UPDATE_URL") if not common.FROZEN else None) or f"https://api.github.com/repos/{REPO}/releases/latest"
-        _, raw = _request(url, 1 << 20, current_version, opener)
-        release = json.loads(raw)
-        assets = {a["name"]: a["browser_download_url"] for a in release["assets"]}
-        _, raw = _request(assets["manifest.json"], 1 << 20, current_version, opener)
-        _, sig = _request(assets["manifest.json.sig"], 1 << 20, current_version, opener)
         # 같은/이전 버전도 서명과 구조를 확인한 뒤 최신으로 표시한다.
-        m = verify_manifest(raw, sig, "0.0.0", pubkey_b64)
+        m, raw, sig, assets = _release(current_version, latest_url, pubkey_b64, opener)
         if parse_version(m["version"]) <= parse_version(current_version):
             result = {"state": "latest", "version": current_version}
             return result
-        staging = prepare(raw, sig, assets[m["zip"]["name"]], base, upd_dir, current_version, pubkey_b64, opener)
-        result = {"state": "ready", "version": m["version"], "staging": str(staging)}
+        result = {"state": "available", "version": m["version"], "notes_url": m.get("notes_url", ""), "notes": _notes(m)}
+        staging = upd_dir / "staging" / m["version"]
+        if mode == "auto":
+            staging = prepare(raw, sig, assets[m["zip"]["name"]], base, upd_dir, current_version, pubkey_b64, opener)
+        elif _prefs(data_dir).get("consent", {}).get("version") == m["version"] and (staging / ".ready").exists():
+            if _ready(staging, current_version, pubkey_b64)["version"] != m["version"]:
+                raise UpdateError("다른 버전")
+        else:
+            return result
+        result.update(state="ready", staging=str(staging))
         return result
     except Exception as e:
         result = {"state": "error", "version": current_version, "error": str(e)}
@@ -551,7 +625,10 @@ def check_once(base: Path, data_dir: Path, upd_dir: Path, current_version: str, 
             pass
         return result
     finally:
+        result.setdefault("notes", "")
         result["last_check"] = time.time()
+        _status = result
+        _manual_prompt = manual and result.get("state") == "available"
         try:
             _write_json(data_dir / "update_state.json", result)
         except Exception as e:
@@ -619,54 +696,221 @@ def update_dir():
     return Path(override or Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "W.S.T/update")
 
 
-def status(consume=True):
+def status(consume=True, *, base=None, data_dir=None, pubkey_b64=None):
     global _last_result
     if not common.FROZEN:
         s = {"state": "disabled", "error": "exe에서만 지원", "current_version": "-", "checking": _guard.locked()}
         try:
-            s["current_version"] = current_version()
+            s["current_version"] = current_version(base)
         except Exception:
             pass
         if consume and _last_result:
             s["last_result"], _last_result = _last_result, None
-        return s
-    s = dict(_status or common.load("update_state", {}))
+        return _status_fields(s, data_dir)
+    s = dict(_status or (common.load("update_state", {}) if data_dir is None
+                         else _read_json(Path(data_dir) / "update_state.json", {})))
     try:
-        if not _keys():
+        if not _keys(pubkey_b64):
             s.update(state="disabled", error="업데이트 공개키 미설정")
     except UpdateError as e:
         s.update(state="error", error=str(e))
     try:
-        s["current_version"] = current_version()
+        s["current_version"] = current_version(base)
     except UpdateError:
         s["current_version"] = "-"
     if s["current_version"] != "-" and s.get("state") == "ready" and parse_version(s["version"]) <= parse_version(s["current_version"]):
         s.update(state="latest", version=s["current_version"])
-    backup = common.BASE / ".wst-backup"
+    backup = Path(base or common.BASE) / ".wst-backup"
     if backup.exists() or backup.is_symlink():
         s.update(state="error", error=f"이전 업데이트 백업이 남아 있어 자동 업데이트를 멈췄습니다({backup} 확인)")
     s["checking"] = _guard.locked()
     if consume and _last_result:
         s["last_result"], _last_result = _last_result, None
+    return _status_fields(s, data_dir)
+
+
+def _status_fields(s, data_dir=None):
+    prefs = _prefs(data_dir)
+    mode = _mode(data_dir)
+    s.update(mode=mode, consent=prefs.get("consent"), notes_url=s.get("notes_url", ""))
+    s["notes"] = s.get("notes", "") if s.get("state") in ("available", "ready") and isinstance(s.get("notes"), str) else ""
+    s["prompt"] = bool(s.get("state") == "available" and
+                       (_manual_prompt or (mode == "notify" and s.get("version") != prefs.get("skip")
+                                           and time.time() >= prefs.get("remind_after", 0))))
     return s
 
 
-def start_check():
+def start_check(*, manual=False):
     if not common.FROZEN:
         return status(consume=False)
     if _stopping or not _guard.acquire(False):
         return status(consume=False)
     def run():
-        global _status
+        global _status, _manual_prompt
         try:
-            _status = check_once(common.BASE, common.DATA, update_dir(), current_version())
+            _status = check_once(common.BASE, common.DATA, update_dir(), current_version(), manual=manual)
+            _manual_prompt = manual and _status.get("state") == "available"
         except UpdateError as e:
             _status = {"state": "error", "error": str(e)}
             _log(common.DATA, e)
         finally:
             _guard.release()
+            _changed()
     threading.Thread(target=run, daemon=True).start()
     return status(consume=False)
+
+
+def _known(version, states, *, base=None, data_dir=None, pubkey_b64=None):
+    parse_version(version)
+    s = status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+    if s.get("version") != version or s.get("state") not in states:
+        raise UpdateError("다른 버전")
+    return s
+
+
+def download(version, when, *, base=None, data_dir=None, upd_dir=None, latest_url=None, pubkey_b64=None, opener=None):
+    global _status, _manual_prompt
+    data_dir = Path(data_dir or common.DATA)
+    upd_dir = Path(upd_dir) if upd_dir is not None else update_dir()
+    parse_version(version)
+    if when not in ("now", "exit"):
+        raise UpdateError("잘못된 설치 시점")
+    if not common.FROZEN:
+        raise UpdateError("exe에서만 지원")
+    if _stopping or not _guard.acquire(False):
+        raise UpdateError("업데이트 확인 또는 내려받는 중입니다")
+    try:
+        with _prefs_guard:
+            # 실패한 다운로드도 같은 승낙으로 다시 시도할 수 있다.
+            s = _known(version, ("available", "ready", "error"), base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+            prefs = _prefs(data_dir)
+            if s["state"] == "error" and prefs.get("consent", {}).get("version") != version:
+                raise UpdateError("다른 버전")
+            change_when = s["state"] == "ready" and when == "exit" and prefs.get("consent", {}).get("version") == version
+            if change_when and _ready(upd_dir / "staging" / version, current_version(base), pubkey_b64)["version"] != version:
+                raise UpdateError("다른 버전")
+            prefs["consent"] = {"version": version, "when": when}
+            if prefs.get("skip") == version:
+                prefs.pop("skip")
+            prefs.pop("remind_after", None)
+            _write_json(data_dir / "update_prefs.json", prefs)
+            _manual_prompt = False
+            if not change_when:
+                _status = {"state": "downloading", "version": version, "last_check": s.get("last_check"), "notes": ""}
+    except Exception:
+        _guard.release()
+        raise
+    if change_when:
+        _guard.release()
+        _changed()
+        return status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+
+    def run():
+        global _status, _manual_prompt
+        try:
+            current = current_version(base)
+            m, raw, sig, assets = _release(current, latest_url, pubkey_b64, opener)
+            if parse_version(m["version"]) <= parse_version(current):
+                raise UpdateError("새 버전이 아닙니다")
+            if m["version"] != version:
+                with _prefs_guard:
+                    prefs = _prefs(data_dir)
+                    prefs.pop("consent", None)
+                    _write_json(data_dir / "update_prefs.json", prefs)
+                _status = {"state": "available", "version": m["version"], "notes_url": m.get("notes_url", ""), "notes": _notes(m)}
+                _manual_prompt = True
+            else:
+                staging = prepare(raw, sig, assets[m["zip"]["name"]], Path(base or common.BASE), upd_dir, current, pubkey_b64, opener)
+                _status = {"state": "ready", "version": version, "staging": str(staging), "notes_url": m.get("notes_url", ""), "notes": _notes(m)}
+        except Exception as e:
+            _status = {"state": "error", "version": version, "error": str(e)}
+            _log(data_dir, e)
+        finally:
+            _status.setdefault("notes", "")
+            _status["last_check"] = time.time()
+            try:
+                _write_json(data_dir / "update_state.json", _status)
+            finally:
+                _guard.release()
+                _changed()
+    threading.Thread(target=run, daemon=True).start()
+    _changed()
+    return status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+
+
+def restart(version, *, base=None, data_dir=None, upd_dir=None, latest_url=None, pubkey_b64=None, opener=None):
+    global _restart, _stopping
+    data_dir = Path(data_dir or common.DATA)
+    upd_dir = Path(upd_dir) if upd_dir is not None else update_dir()
+    if not common.FROZEN:
+        raise UpdateError("exe에서만 지원")
+    parse_version(version)
+    if not _guard.acquire(timeout=30):
+        raise UpdateError("업데이트 확인 중입니다. 잠시 뒤 다시 시도하세요")
+    try:
+        if _read_json(upd_dir / "failures.json", {}).get(version, 0) >= 3:
+            raise UpdateError("이 버전 설치가 여러 번 실패했습니다")
+        lock = Path(base or common.BASE) / ".wst-updating"
+        if lock.exists() and not _lock_expired(lock):
+            raise UpdateError("업데이트 적용 중입니다")
+        with _prefs_guard:
+            prefs = _prefs(data_dir)
+            if prefs.get("consent", {}).get("version") != version or prefs.get("skip") == version:
+                raise UpdateError("승낙하지 않은 버전")
+            if _ready(upd_dir / "staging" / version, current_version(base), pubkey_b64)["version"] != version:
+                raise UpdateError("다른 버전")
+            prefs["consent"]["when"] = "now"
+            _write_json(data_dir / "update_prefs.json", prefs)
+            _restart = True
+            _stopping = True
+    finally:
+        _guard.release()
+    if common.request_shutdown:
+        common.request_shutdown()
+    return status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+
+
+def later(version, *, base=None, data_dir=None, upd_dir=None, latest_url=None, pubkey_b64=None, opener=None):
+    global _manual_prompt
+    with _prefs_guard:
+        _known(version, ("available",), base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+        prefs = _prefs(data_dir)
+        prefs["remind_after"] = time.time() + 86400
+        _write_json(Path(data_dir or common.DATA) / "update_prefs.json", prefs)
+        _manual_prompt = False
+    _changed()
+    return status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+
+
+def skip(version, *, base=None, data_dir=None, upd_dir=None, latest_url=None, pubkey_b64=None, opener=None):
+    global _manual_prompt
+    with _prefs_guard:
+        _known(version, ("available", "ready"), base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+        prefs = _prefs(data_dir)
+        prefs["skip"] = version
+        if prefs.get("consent", {}).get("version") == version:
+            prefs.pop("consent")
+        _write_json(Path(data_dir or common.DATA) / "update_prefs.json", prefs)
+        _manual_prompt = False
+    _changed()
+    return status(consume=False, base=base, data_dir=data_dir, pubkey_b64=pubkey_b64)
+
+
+def relaunch(target: Path, result: dict) -> bool:
+    try:
+        if result.get("waited") is not True:
+            return False
+        exe = _safe(target, "W.S.T.exe")
+        _no_links(exe.absolute())
+        subprocess.Popen([str(exe)], cwd=str(target),
+                         creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | common.NO_WINDOW, close_fds=True)
+        return True
+    except Exception as e:
+        try:
+            _log(common.DATA, e)
+        except Exception:
+            pass
+        return False
 
 
 async def schedule():
@@ -674,7 +918,7 @@ async def schedule():
     await asyncio.sleep(60)
     while True:
         last = _read_json(common.DATA / "update_state.json", {}).get("last_check", 0)
-        if time.time() - last >= 86400:
+        if _mode() != "off" and time.time() - last >= 86400:
             start_check()
         await asyncio.sleep(60)
 
@@ -690,14 +934,27 @@ def launch_ready():
             pass
 
     try:
-        if not common.FROZEN or not _keys() or _guard.locked():
+        if not common.FROZEN or not _keys():
+            return
+        if _restart:
+            if not _guard.acquire(timeout=30):
+                raise UpdateError("업데이트 확인 중입니다. 잠시 뒤 다시 시도하세요")
+            _guard.release()
+        elif _guard.locked():
             return
         root = update_dir() / "staging"
         if not root.exists():
             return
         version = current_version()
+        prefs = _prefs()
+        consent = prefs.get("consent", {}).get("version")
+        mode = _mode()
+        if mode != "auto" and (not consent or consent == prefs.get("skip")):
+            return
         candidates = []
         for staging in root.iterdir():
+            if mode != "auto" and staging.name != consent:
+                continue
             try:
                 key = parse_version(staging.name)
             except UpdateError:
@@ -707,6 +964,8 @@ def launch_ready():
         for _, staging in sorted(candidates, key=lambda item: item[0], reverse=True):
             try:
                 m = _ready(staging, version)
+                if mode != "auto" and m["version"] != consent:
+                    raise UpdateError("다른 버전")
                 if _read_json(update_dir() / "failures.json", {}).get(m["version"], 0) >= 3:
                     continue
                 exe = _safe(staging, "W.S.T.exe")
@@ -718,7 +977,10 @@ def launch_ready():
                 with lock.open("x", encoding="utf-8") as f:
                     json.dump({"token": token, "pid": os.getpid()}, f)
                 try:
-                    child = subprocess.Popen([str(exe), "--apply-update", "--target", str(common.BASE), "--wait-pid", str(os.getpid()), "--staging", str(staging), "--lock-token", token],
+                    args = [str(exe), "--apply-update", "--target", str(common.BASE), "--wait-pid", str(os.getpid()), "--staging", str(staging), "--lock-token", token]
+                    if _restart:
+                        args.append("--relaunch")
+                    child = subprocess.Popen(args,
                                      creationflags=getattr(subprocess, "DETACHED_PROCESS", 0) | common.NO_WINDOW, close_fds=True)
                     _write_json(lock, {"token": token, "pid": child.pid})
                 except Exception:

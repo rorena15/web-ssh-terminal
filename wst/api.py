@@ -424,6 +424,10 @@ def _pick_file():
 
 # ── 핸들러 ───────────────────────────────────────────────────
 async def api_handler(ws):
+    from wst import update
+    update_loop = asyncio.get_running_loop()
+    update.on_change = lambda: update_loop.call_soon_threadsafe(
+        lambda: _broadcast({"type": "update", "status": update.status(consume=False)}))
     loop = asyncio.get_running_loop()
     pending = {}
 
@@ -461,7 +465,17 @@ async def api_handler(ws):
                 r = update.status()
             elif op == "update_check":
                 from wst import update
-                r = update.start_check()
+                r = update.start_check(manual=True)
+            elif op in ("update_download", "update_restart", "update_later", "update_skip"):
+                from wst import update
+                if op == "update_download":
+                    r = update.download(m.get("version"), m.get("when"))
+                elif op == "update_restart":
+                    r = update.restart(m.get("version"))
+                elif op == "update_later":
+                    r = update.later(m.get("version"))
+                else:
+                    r = update.skip(m.get("version"))
             elif op == "saveData":
                 for session in m["data"].get("sessions", []):
                     _validate_rdp_strings(session)
@@ -469,6 +483,8 @@ async def api_handler(ws):
                 _broadcast({"type": "data", "data": m["data"]}, skip=ws)
                 r = {}
             elif op == "saveSettings":
+                if m["settings"].get("updateMode", "notify") not in ("notify", "auto", "off"):
+                    raise ValueError("잘못된 updateMode")
                 if not common.LOCAL_MODE:                 # 원격 사용자는 이 PC 경로·전역 단축키 설정을 못 바꿈 (UNC로 NTLM 유출 등)
                     cur = common.settings()
                     for k in ("logDir", "sharedPath", "globalHotkey"):
@@ -479,6 +495,7 @@ async def api_handler(ws):
                 if common.hotkey_apply:
                     common.hotkey_apply(bool(m["settings"].get("globalHotkey")))
                 _broadcast({"type": "settings", "settings": common.settings()}, skip=ws)
+                update._changed()
                 r = {"logDir": str(common.log_dir())}
             elif op == "tunnelStart":
                 data = common.load("sessions", EMPTY)

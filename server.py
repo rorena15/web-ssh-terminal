@@ -53,6 +53,8 @@ if __name__ == "__main__" and "--apply-update" in sys.argv[1:]:
         result = update.apply_update(target, Path(_update_arg("--staging")).resolve(),
                                      data_dir, int(_update_arg("--wait-pid")),
                                      lock_token=_update_arg("--lock-token"))
+        if "--relaunch" in sys.argv[1:]:
+            update.relaunch(target, result)
         raise SystemExit(0 if result["ok"] else 1)
     except Exception as e:
         if data_dir is not None:

@@ -71,6 +71,13 @@ body {
   background: var(--bg); color: var(--fg);
   font: 1rem/1.45 var(--ui-font-family, var(--ui-font-fallback));
 }
+#updateBanner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; flex: 0 0 auto; background: var(--panel2); border-bottom: 0.08333333rem solid var(--line); }
+#updateBanner[hidden] { display: none; }
+#updateNotesDlg { width: 60rem; }
+#updateNotesBody { max-height: 55vh; overflow: auto; overflow-wrap: anywhere; white-space: pre-wrap; }
+#updateNotesBody p { margin: 0.5rem 0; }
+#updateNotesBody ul { margin: 0.5rem 0; padding-left: 1.75rem; }
+#updateNotesActions { flex-wrap: wrap; }
 button, input, select, textarea {
   font: inherit; color: inherit;
   background: var(--panel2); border: 0.08333333rem solid var(--line); border-radius: 0.16666667rem;

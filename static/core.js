@@ -83,6 +83,7 @@ const api = {
     const ws = this.ws = new WebSocket(wsUrl('/api'));
     ws.onopen = () => {
       this.readyResolve();
+      if (this.opened) this.call('update_status').then(s => (this.handlers.update || []).forEach(f => f({ status: s }))).catch(() => {});
       if (this.opened) this.onReopen?.();      // 서버 재시작 후 다시 붙으면 데이터 새로 읽기
       this.opened = true;
     };

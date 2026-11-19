@@ -628,7 +628,7 @@ $('#tbSettings').onclick = async () => {
   f.logDir.value = SETTINGS.logDir || '';
   f.logDir.placeholder = LOGDIR;
   f.logDefault.checked = !!SETTINGS.logDefault;
-  f.autoUpdate.checked = SETTINGS.autoUpdate !== false;
+  f.updateMode.value = SETTINGS.updateMode || 'notify';
   f.monitor.checked = !!SETTINGS.monitor;
   f.followFolder.checked = SETTINGS.followFolder !== false;
   f.logTimestamp.checked = !!SETTINGS.logTimestamp;
@@ -696,7 +696,7 @@ $('#tbSettings').onclick = async () => {
   setUiFontFamily(uiFamily);
   applyTheme();
   const next = { ...SETTINGS, logDir: f.logDir.value.trim(), logDefault: f.logDefault.checked, monitor: f.monitor.checked,
-                 autoUpdate: f.autoUpdate.checked,
+                 updateMode: f.updateMode.value,
                  followFolder: f.followFolder.checked, highlight, logTimestamp: f.logTimestamp.checked,
                  pasteWarn: f.pasteWarn.checked, globalHotkey: f.globalHotkey.checked, sharedPath: f.sharedPath.value.trim(), fontFamily: f.fontFamily.value.trim(), scrollback: +f.scrollback.value || 0,
                  hiddenFeatures: $$('#featureChecks input').filter((i) => !i.checked).map((i) => i.dataset.k) };
