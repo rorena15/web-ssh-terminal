@@ -96,3 +96,4 @@
 | 리뷰(보안 → agy·Claude 각자) | ✅ 11/19 1차: 재시작 경쟁(중간, 둘 다)·띠 고착·prefs 잠금 수정. 2차: A 재시작 직후 확인 끼어듦(중간)·C·D·E·F 수정, B(CRLF) 사실 아님. agy 재확인 5건 해결·새 결함 없음 |
 | 기록만(낮음) | ⏳ --relaunch인데 대기 전 단계 실패면 다시 안 띄움, update._mode()가 설정 옮기기 규칙 중복, 재시작 확인 창이 창마다 뜸 |
 | 통합·릴리즈 v1.4.0 | ✅ 11/19 로컬 exe 빌드(build 7) 실측: 시작·v1.4.0·notify 기본·잘못된 입력 거부·실제 GitHub 확인 latest. main 커밋 38ac679, 태그 v1.4.0 push → CI(release 환경 승인 필요) |
+| GitHub 릴리즈 v1.4.0(CI, build 7, 승인 후 서명) | ✅ 11/19 (zip SHA-256 f2745df4…6dd1c2d0). 공개 링크에서 받은 manifest 서명이 앱 공개키로 검증됨(1.3.0 대비 버전 상향 통과), zip 오프셋으로 꺼낸 229개 파일 해시 일치, zip 안 version_info 1.4.0·build 7, manifest notes(ko 905자·en 1335자) 포함 확인. releases/latest = v1.4.0. 새 버전 내려받기→재시작 설치 실측은 다음 릴리즈 때 |
