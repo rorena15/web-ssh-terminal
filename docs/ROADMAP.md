@@ -84,3 +84,15 @@
 | GitHub 릴리즈 v1.3.0(CI, build 7, 승인 후 서명) | ✅ 11/17 (zip SHA-256 652c5fc7…0a24fe9b). 공개 링크에서 받은 manifest 서명이 앱 공개키로 검증됨(1.2.0 대비 버전 상향 통과), zip 오프셋으로 꺼낸 229개 파일 해시 일치, zip 안 version_info 1.3.0·build 7, 메뉴 변경 포함 확인. releases/latest = v1.3.0 |
 | 기록만(낮음) | ⏳ 비밀번호 저장소 목록이 설정 버튼 위치에 뜸, 하위 메뉴 hover 열림 지연 없음, t_font의 uiScaleChanged 검사는 예전 라벨을 찾아 항상 false(합격 판정엔 미포함, 기존부터) |
 | 다음 안건: Chrome 의존성 제거 검토 | ⏳ 메뉴 개편 후 |
+
+## 업데이트 알림·승낙 (2026-11-19~) `docs/SPEC_UPDATE_CONSENT_2026-11-19.md`
+| 항목 | 상태 |
+|---|---|
+| 사용자 결정: 몰래 설치 대신 알림 → 승낙 후 내려받기, 버튼 4개(지금 재시작해서 설치·종료할 때 설치·나중에·이 버전 건너뛰기), 설정 3단계(알림 후 설치 기본·자동·확인 안 함) | ✅ 11/19 |
+| 명세 | ✅ 11/19 Claude |
+| 구현(worktree feat/update-consent) | ✅ 11/19 Codex 1차 + 좁은 수정 1회(시험 주입 인수·manual 알림·_status 갱신) |
+| 명세 기반 시험 t_update_consent.py | ✅ 11/19 agy 작성, 수정 전 22/25 실패 → 52/52 통과(시험 결함 3곳 Claude 수정: zip 기록 초기화·saveSettings 정적 확인·FROZEN 버전 읽기). 기존 t_update 85·lock 10·keys 17 통과(t_update는 updateMode=auto 지정). 화면 t_update_banner.js(Claude) 통과, t_help·t_menu 회귀 통과 |
+| 변경 내용 표시(명세 7절, 사용자 추가 요청): 서명된 manifest의 notes → 띠 요약·앱 안 창 | ✅ 11/19 Codex 구현, agy 시험 t_update_notes 21/21(명시 파일 없음 실패로 1곳 Claude 갱신), 화면 t_update_notes_ui(Claude) |
+| 리뷰(보안 → agy·Claude 각자) | ✅ 11/19 1차: 재시작 경쟁(중간, 둘 다)·띠 고착·prefs 잠금 수정. 2차: A 재시작 직후 확인 끼어듦(중간)·C·D·E·F 수정, B(CRLF) 사실 아님. agy 재확인 5건 해결·새 결함 없음 |
+| 기록만(낮음) | ⏳ --relaunch인데 대기 전 단계 실패면 다시 안 띄움, update._mode()가 설정 옮기기 규칙 중복, 재시작 확인 창이 창마다 뜸 |
+| 통합·릴리즈 v1.4.0 | ✅ 11/19 로컬 exe 빌드(build 7) 실측: 시작·v1.4.0·notify 기본·잘못된 입력 거부·실제 GitHub 확인 latest. main 커밋 38ac679, 태그 v1.4.0 push → CI(release 환경 승인 필요) |
